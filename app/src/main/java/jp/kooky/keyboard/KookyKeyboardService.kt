@@ -30,21 +30,34 @@ class KookyKeyboardService : InputMethodService() {
     private var categories: MutableList<Category> = mutableListOf()
     private var current = 0
 
-    // 片手モード 0=オフ 1=右寄せ 2=左寄せ
+    // 片手モード 0=通常 1=右寄せ 2=左寄せ
     private var oneHand = 0
 
     private var leftStrip: View? = null
     private var rightStrip: View? = null
     private var leftArrow: View? = null
     private var rightArrow: View? = null
+    private var leftSide: View? = null
+    private var rightSide: View? = null
     private var tabsRow: LinearLayout? = null
     private var listBox: LinearLayout? = null
     private var listScroll: ScrollView? = null
 
+    // ---------- 長押しリピート（⌫・カーソル移動） ----------
+    // 押しているキーが「押下中」かつ「画面に出ている」間だけ繰り返す。
+    // 指を離した合図を取りこぼしても勝手に動き続けないようにする。
     private val handler = Handler(Looper.getMainLooper())
-    private val repeatDelete = object : Runnable {
+    private var repeatKey: View? = null
+    private var repeatAction: (() -> Unit)? = null
+    private val repeater = object : Runnable {
         override fun run() {
-            deleteOne()
+            val k = repeatKey
+            val a = repeatAction
+            if (k == null || a == null || !k.isPressed || !k.isAttachedToWindow || !k.isShown) {
+                stopRepeat()
+                return
+            }
+            a()
             handler.postDelayed(this, 60)
         }
     }
@@ -60,17 +73,17 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     override fun onCreateInputView(): View {
+        stopRepeat()
         categories = store.load()
         oneHand = prefs().getInt("one_hand", 0)
 
-        // 外枠：[左の余白帯][キーボード本体][右の余白帯]
+        // 外枠：[左の◀▶帯][キーボード本体][右の◀▶帯]
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setBackgroundColor(Ui.BG)
         }
         val stripWidth = (resources.displayMetrics.widthPixels * 0.22f).toInt()
 
-        // 片手モード中に空いた側に出る「◀▶」（タップで元に戻す）
         val ls = stripKey()
         root.addView(ls, LinearLayout.LayoutParams(stripWidth, match))
         leftStrip = ls
@@ -104,16 +117,28 @@ class KookyKeyboardService : InputMethodService() {
 
         p.addView(top, LinearLayout.LayoutParams(match, dp(30)))
 
-        // 中段：定型文ボタン一覧（縦スクロール）
+        // 本体：[＠列(左寄せ時)][定型文＋下段キー][＠列(通常・右寄せ時)]
+        val body = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+
+        val lside = sideColumn()
+        body.addView(lside, LinearLayout.LayoutParams(dp(40), match).apply { rightMargin = dp(4) })
+        leftSide = lside
+
+        val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false }
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         scroll.addView(box)
-        p.addView(scroll, LinearLayout.LayoutParams(match, dp(134)).apply { topMargin = dp(4) })
+        content.addView(scroll, LinearLayout.LayoutParams(match, dp(134)))
         listBox = box
         listScroll = scroll
+        content.addView(buildBottomRow(), LinearLayout.LayoutParams(match, dp(38)).apply { topMargin = dp(4) })
+        body.addView(content, LinearLayout.LayoutParams(0, wrap, 1f))
 
-        // 下段のキー
-        p.addView(buildBottomRow(), LinearLayout.LayoutParams(match, dp(38)).apply { topMargin = dp(4) })
+        val rside = sideColumn()
+        body.addView(rside, LinearLayout.LayoutParams(dp(40), match).apply { leftMargin = dp(4) })
+        rightSide = rside
+
+        p.addView(body, LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(4) })
 
         applyOneHand()
         render()
@@ -122,6 +147,7 @@ class KookyKeyboardService : InputMethodService() {
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        stopRepeat()
         // 設定画面で編集した内容を毎回読み直す
         categories = store.load()
         if (current >= categories.size) current = 0
@@ -130,8 +156,23 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
-        handler.removeCallbacks(repeatDelete)
+        stopRepeat()
         super.onFinishInputView(finishingInput)
+    }
+
+    override fun onFinishInput() {
+        stopRepeat()
+        super.onFinishInput()
+    }
+
+    override fun onWindowHidden() {
+        stopRepeat()
+        super.onWindowHidden()
+    }
+
+    override fun onDestroy() {
+        stopRepeat()
+        super.onDestroy()
     }
 
     // ---------- 片手モード ----------
@@ -142,12 +183,14 @@ class KookyKeyboardService : InputMethodService() {
         applyOneHand()
     }
 
-    // 0=通常（◀▶を両端に表示） 1=右寄せ（左に◀▶帯） 2=左寄せ（右に◀▶帯）
+    // 0=通常（◀/▶を両端、＠列は右） 1=右寄せ（左に◀▶帯、＠列は右） 2=左寄せ（右に◀▶帯、＠列は左）
     private fun applyOneHand() {
         leftStrip?.visibility = if (oneHand == 1) View.VISIBLE else View.GONE
         rightStrip?.visibility = if (oneHand == 2) View.VISIBLE else View.GONE
         leftArrow?.visibility = if (oneHand == 0) View.VISIBLE else View.GONE
         rightArrow?.visibility = if (oneHand == 0) View.VISIBLE else View.GONE
+        leftSide?.visibility = if (oneHand == 2) View.VISIBLE else View.GONE
+        rightSide?.visibility = if (oneHand == 2) View.GONE else View.VISIBLE
     }
 
     private fun arrowKey(label: String, onClick: () -> Unit): TextView = TextView(this).apply {
@@ -173,6 +216,18 @@ class KookyKeyboardService : InputMethodService() {
             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
             setOneHand(0)
         }
+    }
+
+    // サイドの＠列（半角@・全角＠）
+    private fun sideColumn(): View {
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        col.addView(key("@", Ui.KEY).apply {
+            setOnClickListener { type(it, "@") }
+        }, LinearLayout.LayoutParams(match, 0, 1f).apply { bottomMargin = dp(2) })
+        col.addView(key("＠", Ui.KEY).apply {
+            setOnClickListener { type(it, "＠") }
+        }, LinearLayout.LayoutParams(match, 0, 1f).apply { topMargin = dp(2) })
+        return col
     }
 
     // ---------- 描画 ----------
@@ -283,37 +338,23 @@ class KookyKeyboardService : InputMethodService() {
             setOnClickListener { openSettings() }
         }, keyParams(1f))
 
-        // @ 半角 / ＠ 全角（メンション用）
-        row.addView(key("@", Ui.KEY).apply {
-            setOnClickListener { type(it, "@") }
+        // ← → カーソル移動（押しっぱなしで連続）
+        row.addView(key("←", Ui.KEY).apply {
+            repeatable(this) { moveCursor(KeyEvent.KEYCODE_DPAD_LEFT) }
         }, keyParams(1f))
-        row.addView(key("＠", Ui.KEY).apply {
-            setOnClickListener { type(it, "＠") }
+        row.addView(key("→", Ui.KEY).apply {
+            repeatable(this) { moveCursor(KeyEvent.KEYCODE_DPAD_RIGHT) }
         }, keyParams(1f))
 
-        // スペース
-        row.addView(key("空白", Ui.KEY).apply {
-            textSize = 12f
+        // スペース（半角）
+        row.addView(key("スペース", Ui.KEY).apply {
+            textSize = 11f
             setOnClickListener { type(it, " ") }
-        }, keyParams(1.6f))
+        }, keyParams(1.8f))
 
         // ⌫ 押しっぱなしで連続削除
         row.addView(key("⌫", Ui.KEY).apply {
-            setOnTouchListener { v, e ->
-                when (e.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        v.isPressed = true
-                        v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                        deleteOne()
-                        handler.postDelayed(repeatDelete, 400)
-                    }
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        v.isPressed = false
-                        handler.removeCallbacks(repeatDelete)
-                    }
-                }
-                true
-            }
+            repeatable(this) { deleteOne() }
         }, keyParams(1.2f))
 
         // ↵ 改行 / 送信
@@ -340,6 +381,36 @@ class KookyKeyboardService : InputMethodService() {
         rightMargin = dp(2)
     }
 
+    // 押した瞬間に1回、0.4秒押し続けたら連続実行
+    private fun repeatable(v: View, action: () -> Unit) {
+        v.setOnTouchListener { view, e ->
+            when (e.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    stopRepeat()
+                    view.isPressed = true
+                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    action()
+                    repeatKey = view
+                    repeatAction = action
+                    handler.postDelayed(repeater, 400)
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    // 指がキーの外に出たら止める
+                    if (e.x < 0 || e.y < 0 || e.x > view.width || e.y > view.height) stopRepeat()
+                }
+                else -> stopRepeat()
+            }
+            true
+        }
+    }
+
+    private fun stopRepeat() {
+        handler.removeCallbacks(repeater)
+        repeatKey?.isPressed = false
+        repeatKey = null
+        repeatAction = null
+    }
+
     // ---------- 動作 ----------
 
     private fun type(v: View, s: String) {
@@ -347,10 +418,15 @@ class KookyKeyboardService : InputMethodService() {
         currentInputConnection?.commitText(s, 1)
     }
 
+    private fun moveCursor(keyCode: Int) {
+        sendDownUpKeyEvents(keyCode)
+    }
+
     private fun imm(): InputMethodManager =
         getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
 
     private fun switchBack() {
+        stopRepeat()
         val switched = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             switchToPreviousInputMethod()
         } else {
@@ -360,6 +436,7 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     private fun openSettings() {
+        stopRepeat()
         requestHideSelf(0)
         startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
