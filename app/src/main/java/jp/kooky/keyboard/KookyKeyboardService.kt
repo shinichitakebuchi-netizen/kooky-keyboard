@@ -18,7 +18,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
-import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -34,11 +33,13 @@ class KookyKeyboardService : InputMethodService() {
     // 片手モード 0=オフ 1=右寄せ 2=左寄せ
     private var oneHand = 0
 
-    private var panel: LinearLayout? = null
+    private var leftStrip: View? = null
+    private var rightStrip: View? = null
+    private var leftArrow: View? = null
+    private var rightArrow: View? = null
     private var tabsRow: LinearLayout? = null
     private var listBox: LinearLayout? = null
     private var listScroll: ScrollView? = null
-    private var handKey: TextView? = null
 
     private val handler = Handler(Looper.getMainLooper())
     private val repeatDelete = object : Runnable {
@@ -62,37 +63,45 @@ class KookyKeyboardService : InputMethodService() {
         categories = store.load()
         oneHand = prefs().getInt("one_hand", 0)
 
-        // 外枠（画面幅いっぱい）
-        val root = FrameLayout(this).apply { setBackgroundColor(Ui.BG) }
+        // 外枠：[左の余白帯][キーボード本体][右の余白帯]
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setBackgroundColor(Ui.BG)
+        }
+        val stripWidth = (resources.displayMetrics.widthPixels * 0.22f).toInt()
 
-        // 中身（片手モードのときは幅を縮めて左右に寄せる）
+        // 片手モード中に空いた側に出る「◀▶」（タップで元に戻す）
+        val ls = stripKey()
+        root.addView(ls, LinearLayout.LayoutParams(stripWidth, match))
+        leftStrip = ls
+
         val p = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(4), dp(4), dp(4), dp(4))
         }
-        root.addView(p, FrameLayout.LayoutParams(match, wrap))
-        panel = p
+        root.addView(p, LinearLayout.LayoutParams(0, wrap, 1f))
 
-        // 上段：カテゴリのタブ ＋ 片手キー
+        val rs = stripKey()
+        root.addView(rs, LinearLayout.LayoutParams(stripWidth, match))
+        rightStrip = rs
+
+        // 上段：[◀][カテゴリのタブ][▶]
         val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+
+        val la = arrowKey("◀") { setOneHand(2) }
+        top.addView(la, LinearLayout.LayoutParams(dp(30), match).apply { rightMargin = dp(4) })
+        leftArrow = la
+
         val tabScroll = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
         val tabs = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         tabScroll.addView(tabs)
         top.addView(tabScroll, LinearLayout.LayoutParams(0, match, 1f))
         tabsRow = tabs
 
-        val hk = TextView(this).apply {
-            textSize = 12f
-            gravity = Gravity.CENTER
-            setOnClickListener {
-                it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                oneHand = (oneHand + 1) % 3
-                prefs().edit().putInt("one_hand", oneHand).apply()
-                applyOneHand()
-            }
-        }
-        top.addView(hk, LinearLayout.LayoutParams(dp(46), match).apply { leftMargin = dp(4) })
-        handKey = hk
+        val ra = arrowKey("▶") { setOneHand(1) }
+        top.addView(ra, LinearLayout.LayoutParams(dp(30), match).apply { leftMargin = dp(4) })
+        rightArrow = ra
+
         p.addView(top, LinearLayout.LayoutParams(match, dp(30)))
 
         // 中段：定型文ボタン一覧（縦スクロール）
@@ -127,28 +136,42 @@ class KookyKeyboardService : InputMethodService() {
 
     // ---------- 片手モード ----------
 
-    private fun applyOneHand() {
-        val p = panel ?: return
-        val lp = p.layoutParams as FrameLayout.LayoutParams
-        if (oneHand == 0) {
-            lp.width = match
-            lp.gravity = Gravity.NO_GRAVITY
-        } else {
-            lp.width = (resources.displayMetrics.widthPixels * 0.78f).toInt()
-            lp.gravity = if (oneHand == 1) Gravity.END else Gravity.START
-        }
-        p.layoutParams = lp
+    private fun setOneHand(mode: Int) {
+        oneHand = mode
+        prefs().edit().putInt("one_hand", oneHand).apply()
+        applyOneHand()
+    }
 
-        handKey?.apply {
-            text = when (oneHand) {
-                1 -> "右手"
-                2 -> "左手"
-                else -> "片手"
-            }
-            val on = oneHand != 0
-            setTextColor(if (on) Ui.BG else Ui.SUB)
-            typeface = if (on) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-            background = Ui.pressable(if (on) Ui.ORANGE else Ui.CARD, dp(15).toFloat())
+    // 0=通常（◀▶を両端に表示） 1=右寄せ（左に◀▶帯） 2=左寄せ（右に◀▶帯）
+    private fun applyOneHand() {
+        leftStrip?.visibility = if (oneHand == 1) View.VISIBLE else View.GONE
+        rightStrip?.visibility = if (oneHand == 2) View.VISIBLE else View.GONE
+        leftArrow?.visibility = if (oneHand == 0) View.VISIBLE else View.GONE
+        rightArrow?.visibility = if (oneHand == 0) View.VISIBLE else View.GONE
+    }
+
+    private fun arrowKey(label: String, onClick: () -> Unit): TextView = TextView(this).apply {
+        text = label
+        textSize = 12f
+        gravity = Gravity.CENTER
+        setTextColor(Ui.SUB)
+        background = Ui.pressable(Ui.CARD, dp(4).toFloat())
+        setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            onClick()
+        }
+    }
+
+    private fun stripKey(): TextView = TextView(this).apply {
+        text = "◀▶"
+        textSize = 16f
+        gravity = Gravity.CENTER
+        setTextColor(Ui.SUB)
+        background = Ui.pressable(Ui.BG, 0f)
+        visibility = View.GONE
+        setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            setOneHand(0)
         }
     }
 
@@ -168,7 +191,7 @@ class KookyKeyboardService : InputMethodService() {
                 setPadding(dp(12), 0, dp(12), 0)
                 setTextColor(if (selected) Ui.BG else Ui.TEXT)
                 typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-                background = Ui.pressable(if (selected) Ui.ORANGE else Ui.CARD, dp(15).toFloat())
+                background = Ui.pressable(if (selected) Ui.ORANGE else Ui.CARD, dp(4).toFloat())
                 setOnClickListener {
                     it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                     current = i

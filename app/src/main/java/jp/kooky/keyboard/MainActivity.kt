@@ -55,7 +55,7 @@ class MainActivity : Activity() {
         setContentView(scroll)
 
         col.addView(text("KOOKY KEYBOARD", 22f, Ui.ORANGE, bold = true))
-        col.addView(text("定型文キーボード v0.3", 12f, Ui.SUB))
+        col.addView(text("定型文キーボード v0.4", 12f, Ui.SUB))
 
         // --- はじめに ---
         col.addView(section("はじめに"))
@@ -180,7 +180,7 @@ class MainActivity : Activity() {
                 setPadding(dp(14), 0, dp(14), 0)
                 setTextColor(if (selected) Ui.BG else Ui.TEXT)
                 typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-                background = Ui.pressable(if (selected) Ui.ORANGE else Ui.CARD, dp(20).toFloat())
+                background = Ui.pressable(if (selected) Ui.ORANGE else Ui.CARD, dp(4).toFloat())
                 setOnClickListener {
                     current = i
                     render()
