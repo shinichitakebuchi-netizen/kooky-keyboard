@@ -7,6 +7,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
+import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.text.InputType
@@ -54,7 +55,7 @@ class MainActivity : Activity() {
         setContentView(scroll)
 
         col.addView(text("KOOKY KEYBOARD", 22f, Ui.ORANGE, bold = true))
-        col.addView(text("定型文キーボード v0.2", 12f, Ui.SUB))
+        col.addView(text("定型文キーボード v0.3", 12f, Ui.SUB))
 
         // --- はじめに ---
         col.addView(section("はじめに"))
@@ -101,7 +102,30 @@ class MainActivity : Activity() {
         col.addView(button("書き出し（クリップボードにコピー）", Ui.KEY) { exportData() }, blockParams())
         col.addView(button("読み込み（クリップボードから）", Ui.KEY) { importData() }, blockParams())
 
+        // --- アップデート ---
+        col.addView(section("アップデート"))
+        col.addView(text("今のバージョン：v${currentVersion()}", 11f, Ui.SUB))
+        col.addView(button("最新版をダウンロード", Ui.ORANGE) { openUpdatePage() }, blockParams())
+
         render()
+    }
+
+    // ---------- アップデート ----------
+
+    private val releasesUrl = "https://github.com/shinichitakebuchi-netizen/kooky-keyboard/releases/latest"
+
+    private fun currentVersion(): String = try {
+        packageManager.getPackageInfo(packageName, 0).versionName ?: "?"
+    } catch (e: Exception) {
+        "?"
+    }
+
+    private fun openUpdatePage() {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(releasesUrl)))
+        } catch (e: Exception) {
+            toast("ブラウザを開けなかったよ")
+        }
     }
 
     override fun onResume() {
