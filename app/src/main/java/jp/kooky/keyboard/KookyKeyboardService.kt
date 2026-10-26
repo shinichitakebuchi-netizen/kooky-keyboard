@@ -131,7 +131,7 @@ class KookyKeyboardService : InputMethodService() {
         content.addView(scroll, LinearLayout.LayoutParams(match, dp(134)))
         listBox = box
         listScroll = scroll
-        content.addView(buildBottomRow(), LinearLayout.LayoutParams(match, dp(38)).apply { topMargin = dp(4) })
+        content.addView(buildBottomRow(), LinearLayout.LayoutParams(match, dp(46)).apply { topMargin = dp(4) })
         body.addView(content, LinearLayout.LayoutParams(0, wrap, 1f))
 
         val rside = sideColumn()
@@ -218,16 +218,31 @@ class KookyKeyboardService : InputMethodService() {
         }
     }
 
-    // サイドの＠列（半角@・全角＠）
+    // サイド列：上から @（半角）、🌐、⚙
     private fun sideColumn(): View {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+
         col.addView(key("@", Ui.KEY).apply {
             setOnClickListener { type(it, "@") }
-        }, LinearLayout.LayoutParams(match, 0, 1f).apply { bottomMargin = dp(2) })
-        col.addView(key("＠", Ui.KEY).apply {
-            setOnClickListener { type(it, "＠") }
-        }, LinearLayout.LayoutParams(match, 0, 1f).apply { topMargin = dp(2) })
+        }, sideParams())
+
+        // 🌐 タップ：前のキーボード（Samsungキーボード等）に戻る / 長押し：キーボード選択
+        col.addView(key("🌐", Ui.KEY).apply {
+            setOnClickListener { switchBack() }
+            setOnLongClickListener { imm().showInputMethodPicker(); true }
+        }, sideParams())
+
+        // ⚙ 定型文の編集画面を開く
+        col.addView(key("⚙", Ui.KEY).apply {
+            setOnClickListener { openSettings() }
+        }, sideParams())
+
         return col
+    }
+
+    private fun sideParams() = LinearLayout.LayoutParams(match, 0, 1f).apply {
+        topMargin = dp(2)
+        bottomMargin = dp(2)
     }
 
     // ---------- 描画 ----------
@@ -327,43 +342,36 @@ class KookyKeyboardService : InputMethodService() {
     private fun buildBottomRow(): View {
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
 
-        // 🌐 タップ：前のキーボード（Samsungキーボード等）に戻る / 長押し：キーボード選択
-        row.addView(key("🌐", Ui.KEY).apply {
-            setOnClickListener { switchBack() }
-            setOnLongClickListener { imm().showInputMethodPicker(); true }
-        }, keyParams(1f))
-
-        // ⚙ 定型文の編集画面を開く
-        row.addView(key("⚙", Ui.KEY).apply {
-            setOnClickListener { openSettings() }
-        }, keyParams(1f))
-
         // ← → カーソル移動（押しっぱなしで連続）
         row.addView(key("←", Ui.KEY).apply {
+            textSize = 18f
             repeatable(this) { moveCursor(KeyEvent.KEYCODE_DPAD_LEFT) }
         }, keyParams(1f))
         row.addView(key("→", Ui.KEY).apply {
+            textSize = 18f
             repeatable(this) { moveCursor(KeyEvent.KEYCODE_DPAD_RIGHT) }
         }, keyParams(1f))
 
         // スペース（半角）
         row.addView(key("スペース", Ui.KEY).apply {
-            textSize = 11f
+            textSize = 13f
             setOnClickListener { type(it, " ") }
-        }, keyParams(1.8f))
+        }, keyParams(1.5f))
 
         // ⌫ 押しっぱなしで連続削除
         row.addView(key("⌫", Ui.KEY).apply {
+            textSize = 18f
             repeatable(this) { deleteOne() }
-        }, keyParams(1.2f))
+        }, keyParams(1.3f))
 
-        // ↵ 改行 / 送信
+        // ↵ 改行 / 送信（一番大きく）
         row.addView(key("↵", Ui.ORANGE).apply {
+            textSize = 20f
             setOnClickListener {
                 it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                 enter()
             }
-        }, keyParams(1.2f))
+        }, keyParams(2.2f))
 
         return row
     }
