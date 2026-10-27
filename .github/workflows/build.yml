@@ -34,6 +34,27 @@ jobs:
         with:
           gradle-version: '8.7'
 
+      # 変換辞書：Mozc OSS辞書（固定バージョン）から作る。作ったものはキャッシュして使い回す
+      - name: Cache dictionary
+        id: dictcache
+        uses: actions/cache@v4
+        with:
+          path: app/src/main/assets/dict.db
+          key: dict-d766d25d-${{ hashFiles('tools/build_dict.py') }}
+
+      - name: Build dictionary
+        if: steps.dictcache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p /tmp/mozc && cd /tmp/mozc
+          git init -q
+          git remote add origin https://github.com/google/mozc.git
+          git sparse-checkout set src/data/dictionary_oss
+          git fetch -q --depth 1 --filter=blob:none origin d766d25d253141eff71e25c593aaf753f8d91cee
+          git checkout -q FETCH_HEAD
+          cd "$GITHUB_WORKSPACE"
+          mkdir -p app/src/main/assets
+          python3 tools/build_dict.py /tmp/mozc/src/data/dictionary_oss app/src/main/assets/dict.db
+
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon
 

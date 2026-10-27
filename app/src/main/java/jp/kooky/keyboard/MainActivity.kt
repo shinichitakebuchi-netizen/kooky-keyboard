@@ -55,7 +55,7 @@ class MainActivity : Activity() {
         setContentView(scroll)
 
         col.addView(text("KOOKY KEYBOARD", 22f, Ui.ORANGE, bold = true))
-        col.addView(text("定型文キーボード v0.6", 12f, Ui.SUB))
+        col.addView(text("定型文キーボード v0.7", 12f, Ui.SUB))
 
         // --- はじめに ---
         col.addView(section("はじめに"))
@@ -107,7 +107,39 @@ class MainActivity : Activity() {
         col.addView(text("今のバージョン：v${currentVersion()}", 11f, Ui.SUB))
         col.addView(button("最新版をダウンロード", Ui.ORANGE) { openUpdatePage() }, blockParams())
 
+        // --- 日本語変換 ---
+        col.addView(section("日本語変換"))
+        col.addView(text("選んだ変換は覚えて、次から先に出すよ", 11f, Ui.SUB))
+        col.addView(button("変換の学習をリセット", Ui.KEY) {
+            confirm("覚えた変換をすべて消す？") {
+                Dict(this).clearLearning()
+                toast("リセットしたよ")
+            }
+        }, blockParams())
+        col.addView(button("辞書のライセンス", Ui.KEY) { showDictLicense() }, blockParams())
+
         render()
+    }
+
+    // 変換辞書（Mozc OSS辞書／IPAdic等）のライセンス表示
+    private fun showDictLicense() {
+        val body = try {
+            assets.open("dict_license.txt").bufferedReader().use { it.readText() }
+        } catch (e: Exception) {
+            "ライセンス文を読み込めなかったよ"
+        }
+        val tv = TextView(this).apply {
+            text = "変換辞書は Mozc（Google）のオープンソース辞書を元にしています。\n\n$body"
+            textSize = 11f
+            setPadding(dp(20), dp(12), dp(20), dp(12))
+            setTextIsSelectable(true)
+        }
+        val sv = ScrollView(this).apply { addView(tv) }
+        AlertDialog.Builder(this)
+            .setTitle("辞書のライセンス")
+            .setView(sv)
+            .setPositiveButton("閉じる", null)
+            .show()
     }
 
     // ---------- アップデート ----------
