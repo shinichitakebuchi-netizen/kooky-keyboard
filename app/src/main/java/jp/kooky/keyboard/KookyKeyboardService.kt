@@ -82,7 +82,8 @@ class KookyKeyboardService : InputMethodService() {
             pr.getInt("height_pct", 100).coerceIn(70, 150),
             pr.getInt("onehand_pct", 78).coerceIn(55, 95),
             pr.getString("theme", "navy"),
-            pr.getInt("bg_trans", 0).coerceIn(0, 90)
+            pr.getInt("bg_trans", 0).coerceIn(0, 90),
+            pr.getInt("key_trans", 0).coerceIn(0, 90)
         ).joinToString("|")
     }
 
@@ -106,7 +107,15 @@ class KookyKeyboardService : InputMethodService() {
 
     // 押したときの波紋（ライトは暗め、それ以外は明るめ）
     private fun press(color: Int, radius: Float) =
-        Ui.pressable(color, radius, if (pal === Themes.LIGHT) 0x22000000 else 0x33FFFFFF)
+        Ui.pressable(keyColor(color), radius, if (pal === Themes.LIGHT) 0x22000000 else 0x33FFFFFF)
+
+    // キーの透過率をかけた色（文字は透けない）
+    private var keyTrans = 0
+    private fun keyColor(color: Int): Int {
+        if (keyTrans == 0 || color == Color.TRANSPARENT) return color
+        val a = (Color.alpha(color) * (100 - keyTrans) / 100).coerceIn(0, 255)
+        return (a shl 24) or (color and 0x00FFFFFF)
+    }
 
     // 片手モード 0=通常 1=右寄せ 2=左寄せ
     private var oneHand = 0
@@ -184,6 +193,7 @@ class KookyKeyboardService : InputMethodService() {
         oneHandPct = prefs().getInt("onehand_pct", 78).coerceIn(55, 95)
         pal = Themes.of(prefs().getString("theme", "navy"))
         bgTrans = prefs().getInt("bg_trans", 0).coerceIn(0, 90)
+        keyTrans = prefs().getInt("key_trans", 0).coerceIn(0, 90)
         builtLook = lookKey()
         // 透過したときに後ろが見えるよう、キーボードの窓自体の背景を消す
         window?.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
@@ -432,9 +442,15 @@ class KookyKeyboardService : InputMethodService() {
         }
     }
 
-    // サイド列：上から @（小さめ）、⌫、↵（大きめ）
+    // サイド列：上から ⌫、@（小さめ）、↵（大きめ）
     private fun sideColumn(): View {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+
+        // ⌫ 押しっぱなしで連続削除
+        col.addView(key("⌫", pal.key).apply {
+            textSize = 18f
+            repeatable(this) { backspace() }
+        }, sideParams(1f))
 
         col.addView(key("@", pal.key).apply {
             textSize = 14f
@@ -444,12 +460,6 @@ class KookyKeyboardService : InputMethodService() {
                 type(it, "@")
             }
         }, sideParams(0.6f))
-
-        // ⌫ 押しっぱなしで連続削除
-        col.addView(key("⌫", pal.key).apply {
-            textSize = 18f
-            repeatable(this) { backspace() }
-        }, sideParams(1f))
 
         // ↵ 改行 / 送信（変換中は「確定」）
         val ek = key("↵", pal.accent).apply {

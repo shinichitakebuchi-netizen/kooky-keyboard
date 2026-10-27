@@ -58,7 +58,7 @@ class MainActivity : Activity() {
         setContentView(scroll)
 
         col.addView(text("KOOKY KEYBOARD", 22f, Ui.ORANGE, bold = true))
-        col.addView(text("定型文キーボード v0.12", 12f, Ui.SUB))
+        col.addView(text("定型文キーボード v0.13", 12f, Ui.SUB))
 
         // --- はじめに ---
         col.addView(section("はじめに"))
@@ -91,7 +91,8 @@ class MainActivity : Activity() {
         col.addView(section("キーボードの色"))
         col.addView(themePicker(), blockParams())
         col.addView(sizeSlider("背景の透過率", "bg_trans", 0, 0, 90), blockParams())
-        col.addView(text("透過率はキーボードの背景だけにかかるよ（キーは透けない）", 11f, Ui.SUB))
+        col.addView(sizeSlider("キーの透過率", "key_trans", 0, 0, 90), blockParams())
+        col.addView(text("どちらも文字は透けないよ", 11f, Ui.SUB))
 
         // --- 定型文 ---
         col.addView(section("定型文"))
