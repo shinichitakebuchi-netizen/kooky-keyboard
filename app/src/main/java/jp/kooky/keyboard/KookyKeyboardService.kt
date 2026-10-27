@@ -4,7 +4,9 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.ColorDrawable
 import android.inputmethodservice.InputMethodService
 import android.os.Build
 import android.os.Handler
@@ -56,6 +58,33 @@ class KookyKeyboardService : InputMethodService() {
     // サイズ設定（％）。設定画面で変わったら作り直す
     private var heightPct = 100
     private var oneHandPct = 78
+
+    // 配色と背景の透過率（％）
+    private var pal: Palette = Themes.NAVY
+    private var bgTrans = 0
+
+    // 背景色に透過率をかけたもの（キー自体は透過しない）
+    private fun bgColor(): Int {
+        val alpha = (255 * (100 - bgTrans) / 100).coerceIn(0, 255)
+        return (alpha shl 24) or (pal.bg and 0x00FFFFFF)
+    }
+
+    // 今の見た目の設定（変わっていたらキーボードを作り直す）
+    private fun lookKey(): String {
+        val pr = prefs()
+        return listOf(
+            pr.getInt("height_pct", 100).coerceIn(70, 150),
+            pr.getInt("onehand_pct", 78).coerceIn(55, 95),
+            pr.getString("theme", "navy"),
+            pr.getInt("bg_trans", 0).coerceIn(0, 90)
+        ).joinToString("|")
+    }
+
+    private var builtLook = ""
+
+    // 押したときの波紋（ライトは暗め、それ以外は明るめ）
+    private fun press(color: Int, radius: Float) =
+        Ui.pressable(color, radius, if (pal === Themes.LIGHT) 0x22000000 else 0x33FFFFFF)
 
     // 片手モード 0=通常 1=右寄せ 2=左寄せ
     private var oneHand = 0
@@ -131,13 +160,18 @@ class KookyKeyboardService : InputMethodService() {
         oneHand = prefs().getInt("one_hand", 0)
         heightPct = prefs().getInt("height_pct", 100).coerceIn(70, 150)
         oneHandPct = prefs().getInt("onehand_pct", 78).coerceIn(55, 95)
+        pal = Themes.of(prefs().getString("theme", "navy"))
+        bgTrans = prefs().getInt("bg_trans", 0).coerceIn(0, 90)
+        builtLook = lookKey()
+        // 透過したときに後ろが見えるよう、キーボードの窓自体の背景を消す
+        window?.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         enLabelKeys.clear()
         enterKeys.clear()
 
         // 外枠：[左の◀▶帯][キーボード本体][右の◀▶帯]
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setBackgroundColor(Ui.BG)
+            setBackgroundColor(bgColor())
         }
         val stripWidth = (resources.displayMetrics.widthPixels * (100 - oneHandPct) / 100f).toInt()
 
@@ -163,10 +197,10 @@ class KookyKeyboardService : InputMethodService() {
         leftArrow = la
 
         // ⚙ タップ：設定画面 / 長押し：キーボードの切り替え
-        top.addView(key("⚙", Ui.CARD).apply {
+        top.addView(key("⚙", pal.card).apply {
             textSize = 15f
-            setTextColor(Ui.SUB)
-            background = Ui.pressable(Ui.CARD, dp(4).toFloat())
+            setTextColor(pal.sub)
+            background = press(pal.card, dp(4).toFloat())
             setOnClickListener { openSettings() }
             setOnLongClickListener {
                 commitAll()
@@ -253,12 +287,8 @@ class KookyKeyboardService : InputMethodService() {
         stopRepeat()
         clearComposingState()
         dict.prepare()
-        // サイズ設定が変わっていたらキーボードを作り直す
-        if (prefs().getInt("height_pct", 100).coerceIn(70, 150) != heightPct ||
-            prefs().getInt("onehand_pct", 78).coerceIn(55, 95) != oneHandPct
-        ) {
-            setInputView(onCreateInputView())
-        }
+        // サイズ・色・透過率が変わっていたらキーボードを作り直す
+        if (lookKey() != builtLook) setInputView(onCreateInputView())
         // 設定画面で編集した内容を毎回読み直す
         categories = store.load()
         if (!restarting) tab = startTab(info)
@@ -354,8 +384,8 @@ class KookyKeyboardService : InputMethodService() {
         text = label
         textSize = 12f
         gravity = Gravity.CENTER
-        setTextColor(Ui.SUB)
-        background = Ui.pressable(Ui.CARD, dp(4).toFloat())
+        setTextColor(pal.sub)
+        background = press(pal.card, dp(4).toFloat())
         setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
             onClick()
@@ -366,8 +396,8 @@ class KookyKeyboardService : InputMethodService() {
         text = "◀▶"
         textSize = 16f
         gravity = Gravity.CENTER
-        setTextColor(Ui.SUB)
-        background = Ui.pressable(Ui.BG, 0f)
+        setTextColor(pal.sub)
+        background = press(Color.TRANSPARENT, 0f)
         visibility = View.GONE
         setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -379,7 +409,7 @@ class KookyKeyboardService : InputMethodService() {
     private fun sideColumn(): View {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
 
-        col.addView(key("@", Ui.KEY).apply {
+        col.addView(key("@", pal.key).apply {
             textSize = 14f
             setOnClickListener {
                 commitAll()
@@ -389,13 +419,13 @@ class KookyKeyboardService : InputMethodService() {
         }, sideParams(0.6f))
 
         // ⌫ 押しっぱなしで連続削除
-        col.addView(key("⌫", Ui.KEY).apply {
+        col.addView(key("⌫", pal.key).apply {
             textSize = 18f
             repeatable(this) { backspace() }
         }, sideParams(1f))
 
         // ↵ 改行 / 送信（変換中は「確定」）
-        val ek = key("↵", Ui.ORANGE).apply {
+        val ek = key("↵", pal.accent).apply {
             textSize = 22f
             setOnClickListener {
                 it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -429,9 +459,9 @@ class KookyKeyboardService : InputMethodService() {
                 textSize = 13f
                 gravity = Gravity.CENTER
                 setPadding(dp(12), 0, dp(12), 0)
-                setTextColor(if (selected) Ui.BG else Ui.TEXT)
+                setTextColor(if (selected) pal.onAccent else pal.text)
                 typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-                background = Ui.pressable(if (selected) Ui.ORANGE else Ui.CARD, dp(4).toFloat())
+                background = press(if (selected) pal.accent else pal.card, dp(4).toFloat())
                 setOnClickListener {
                     it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                     commitAll()
@@ -457,7 +487,7 @@ class KookyKeyboardService : InputMethodService() {
         if (phrases.isEmpty()) {
             box.addView(TextView(this).apply {
                 text = "定型文がまだないよ。⚙ から追加してね"
-                setTextColor(Ui.SUB)
+                setTextColor(pal.sub)
                 textSize = 12f
                 gravity = Gravity.CENTER
                 setPadding(0, dp(30), 0, 0)
@@ -484,11 +514,11 @@ class KookyKeyboardService : InputMethodService() {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(8), dp(3), dp(8), dp(3))
-            background = Ui.pressable(Ui.KEY, dp(8).toFloat())
+            background = press(pal.key, dp(8).toFloat())
         }
         cell.addView(TextView(this).apply {
             text = p.label()
-            setTextColor(Ui.TEXT)
+            setTextColor(pal.text)
             textSize = 13f
             typeface = Typeface.DEFAULT_BOLD
             maxLines = 1
@@ -497,7 +527,7 @@ class KookyKeyboardService : InputMethodService() {
         if (p.title.isNotBlank()) {
             cell.addView(TextView(this).apply {
                 text = p.body.replace("\n", " ")
-                setTextColor(Ui.SUB)
+                setTextColor(pal.sub)
                 textSize = 10f
                 maxLines = 1
                 ellipsize = TextUtils.TruncateAt.END
@@ -528,7 +558,7 @@ class KookyKeyboardService : InputMethodService() {
         onInput: (String, Boolean) -> Unit
     ): TextView {
         val first = labelFn()
-        val k = key(first, Ui.KEY).apply { textSize = if (first.length > 1) 14f else 20f }
+        val k = key(first, pal.key).apply { textSize = if (first.length > 1) 14f else 20f }
         var x0 = 0f
         var y0 = 0f
         val th = dp(18).toFloat()
@@ -593,7 +623,7 @@ class KookyKeyboardService : InputMethodService() {
             grid.addView(row, LinearLayout.LayoutParams(match, 0, 1f))
         }
         val last = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        last.addView(key("小゛゜", Ui.KEY).apply {
+        last.addView(key("小゛゜", pal.key).apply {
             textSize = 14f
             setOnClickListener {
                 it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -716,7 +746,7 @@ class KookyKeyboardService : InputMethodService() {
             row.addView(TextView(this).apply {
                 text = "辞書を準備中…"
                 textSize = 11f
-                setTextColor(Ui.SUB)
+                setTextColor(pal.sub)
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(dp(6), 0, dp(10), 0)
             }, LinearLayout.LayoutParams(wrap, match))
@@ -730,8 +760,8 @@ class KookyKeyboardService : InputMethodService() {
                 textSize = 15f
                 gravity = Gravity.CENTER
                 setPadding(dp(10), 0, dp(10), 0)
-                setTextColor(if (on) Ui.BG else Ui.TEXT)
-                background = Ui.pressable(if (on) Ui.ORANGE else Ui.CARD, dp(4).toFloat())
+                setTextColor(if (on) pal.onAccent else pal.text)
+                background = press(if (on) pal.accent else pal.card, dp(4).toFloat())
                 setOnClickListener {
                     it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                     choose(i)
@@ -758,7 +788,7 @@ class KookyKeyboardService : InputMethodService() {
         }
         val last = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         // a/A：小文字 → 次の1文字だけ大文字 → ずっと大文字 → 小文字
-        val ck = key("a/A", Ui.KEY).apply {
+        val ck = key("a/A", pal.key).apply {
             textSize = 14f
             setOnClickListener {
                 it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -797,8 +827,8 @@ class KookyKeyboardService : InputMethodService() {
                 2 -> "CAPS"
                 else -> "a/A"
             }
-            setTextColor(if (shift > 0) Ui.BG else Ui.TEXT)
-            background = Ui.pressable(if (shift > 0) Ui.ORANGE else Ui.KEY, dp(8).toFloat())
+            setTextColor(if (shift > 0) pal.onAccent else pal.text)
+            background = press(if (shift > 0) pal.accent else pal.key, dp(8).toFloat())
         }
     }
 
@@ -849,7 +879,7 @@ class KookyKeyboardService : InputMethodService() {
 
         // 入力切替：あ → A → 1 → あ…（定型文を表示中なら直前の入力モードに戻る）
         // 長押し：キーボードの切り替え
-        val mk = key("", Ui.KEY).apply {
+        val mk = key("", pal.key).apply {
             setOnClickListener {
                 it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                 switchMode()
@@ -864,17 +894,17 @@ class KookyKeyboardService : InputMethodService() {
         modeKey = mk
 
         // ← → カーソル移動（押しっぱなしで連続）
-        row.addView(key("←", Ui.KEY).apply {
+        row.addView(key("←", pal.key).apply {
             textSize = 18f
             repeatable(this) { cursor(KeyEvent.KEYCODE_DPAD_LEFT) }
         }, keyParams(1f))
-        row.addView(key("→", Ui.KEY).apply {
+        row.addView(key("→", pal.key).apply {
             textSize = 18f
             repeatable(this) { cursor(KeyEvent.KEYCODE_DPAD_RIGHT) }
         }, keyParams(1f))
 
         // スペース（変換中は「変換」：次の候補へ）
-        val sp = key("スペース", Ui.KEY).apply {
+        val sp = key("スペース", pal.key).apply {
             textSize = 13f
             setOnClickListener { space(it) }
         }
@@ -907,7 +937,7 @@ class KookyKeyboardService : InputMethodService() {
             sb.append(s)
             val on = i == inputMode
             sb.setSpan(
-                ForegroundColorSpan(if (on) Ui.ORANGE else Ui.SUB),
+                ForegroundColorSpan(if (on) pal.accent else pal.sub),
                 start, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
             )
             sb.setSpan(
@@ -924,8 +954,8 @@ class KookyKeyboardService : InputMethodService() {
         text = label
         textSize = 15f
         gravity = Gravity.CENTER
-        setTextColor(if (color == Ui.ORANGE) Ui.BG else Ui.TEXT)
-        background = Ui.pressable(color, dp(8).toFloat())
+        setTextColor(if (color == pal.accent) pal.onAccent else pal.text)
+        background = press(color, dp(8).toFloat())
     }
 
     private fun keyParams(weight: Float) = LinearLayout.LayoutParams(0, match, weight).apply {

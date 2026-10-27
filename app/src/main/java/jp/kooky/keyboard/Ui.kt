@@ -23,8 +23,42 @@ object Ui {
         }
 
     // 押したときに波紋が出る角丸背景
-    fun pressable(color: Int, radius: Float): Drawable =
-        RippleDrawable(ColorStateList.valueOf(0x33FFFFFF), round(color, radius), null)
+    fun pressable(color: Int, radius: Float, ripple: Int = 0x33FFFFFF): Drawable =
+        RippleDrawable(ColorStateList.valueOf(ripple), round(color, radius), null)
 }
 
 fun Context.dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
+
+// キーボードの配色（onAccent＝オレンジの上の文字色）
+class Palette(
+    val name: String,
+    val label: String,
+    val bg: Int,
+    val card: Int,
+    val key: Int,
+    val accent: Int,
+    val text: Int,
+    val sub: Int,
+    val onAccent: Int
+)
+
+object Themes {
+    val NAVY = Palette(
+        "navy", "ネイビー",
+        Color.parseColor("#14213D"), Color.parseColor("#1F2F52"), Color.parseColor("#2A3B63"),
+        Color.parseColor("#F28C28"), Color.WHITE, Color.parseColor("#9AA7C2"), Color.parseColor("#14213D")
+    )
+    val BLACK = Palette(
+        "black", "ブラック",
+        Color.parseColor("#0E0E10"), Color.parseColor("#1C1C1F"), Color.parseColor("#2B2B30"),
+        Color.parseColor("#F28C28"), Color.WHITE, Color.parseColor("#9A9AA2"), Color.parseColor("#111111")
+    )
+    val LIGHT = Palette(
+        "light", "ライト",
+        Color.parseColor("#F2F0EB"), Color.parseColor("#E2DFD8"), Color.WHITE,
+        Color.parseColor("#F28C28"), Color.parseColor("#1E1E1E"), Color.parseColor("#6B6B6B"), Color.parseColor("#1E1E1E")
+    )
+    val ALL = listOf(NAVY, BLACK, LIGHT)
+
+    fun of(name: String?): Palette = ALL.firstOrNull { it.name == name } ?: NAVY
+}

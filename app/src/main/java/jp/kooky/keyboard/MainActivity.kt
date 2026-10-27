@@ -56,7 +56,7 @@ class MainActivity : Activity() {
         setContentView(scroll)
 
         col.addView(text("KOOKY KEYBOARD", 22f, Ui.ORANGE, bold = true))
-        col.addView(text("定型文キーボード v0.9", 12f, Ui.SUB))
+        col.addView(text("定型文キーボード v0.10", 12f, Ui.SUB))
 
         // --- はじめに ---
         col.addView(section("はじめに"))
@@ -84,6 +84,12 @@ class MainActivity : Activity() {
         col.addView(text("上の試し打ち欄でキーボードを開いたまま調整できるよ", 11f, Ui.SUB))
         col.addView(sizeSlider("高さ", "height_pct", 100, 70, 150), blockParams())
         col.addView(sizeSlider("片手モードの幅", "onehand_pct", 78, 55, 95), blockParams())
+
+        // --- キーボードの色 ---
+        col.addView(section("キーボードの色"))
+        col.addView(themePicker(), blockParams())
+        col.addView(sizeSlider("背景の透過率", "bg_trans", 0, 0, 90), blockParams())
+        col.addView(text("透過率はキーボードの背景だけにかかるよ（キーは透けない）", 11f, Ui.SUB))
 
         // --- 定型文 ---
         col.addView(section("定型文"))
@@ -463,6 +469,41 @@ class MainActivity : Activity() {
     }
 
     private fun blockParams() = LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(8) }
+
+    // 配色の選択（ネイビー / ブラック / ライト）。各ボタンはその配色の見本になっている
+    private fun themePicker(): View {
+        val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val chips = ArrayList<Pair<TextView, Palette>>()
+        fun paint() {
+            val now = Themes.of(prefs.getString("theme", "navy"))
+            for ((tv, p) in chips) {
+                val on = p === now
+                val d = Ui.round(p.bg, dp(10).toFloat())
+                d.setStroke(dp(if (on) 3 else 1), if (on) p.accent else Ui.SUB)
+                tv.background = d
+                tv.text = if (on) "✓ ${p.label}" else p.label
+                tv.setTextColor(p.text)
+            }
+        }
+        Themes.ALL.forEachIndexed { i, p ->
+            val tv = TextView(this).apply {
+                textSize = 14f
+                gravity = Gravity.CENTER
+                typeface = Typeface.DEFAULT_BOLD
+                setOnClickListener {
+                    prefs.edit().putString("theme", p.name).apply()
+                    paint()
+                }
+            }
+            chips.add(tv to p)
+            row.addView(tv, LinearLayout.LayoutParams(0, dp(52), 1f).apply {
+                if (i > 0) leftMargin = dp(6)
+            })
+        }
+        paint()
+        return row
+    }
 
     // サイズ調整スライダー（5%刻み、キーボード側は次に開いたときに反映）
     private fun sizeSlider(label: String, key: String, def: Int, lo: Int, hi: Int): View {
