@@ -163,6 +163,8 @@ class KookyKeyboardService : InputMethodService() {
     private var enGrid: View? = null
     private var numGrid: View? = null
     private var spaceKey: TextView? = null
+    private var phraseBtn: TextView? = null
+    private var keysRow: View? = null
     private val enterKeys = ArrayList<TextView>()
 
     // 「元に戻す」用：直前にこのキーボードで確定した文字（読みがあれば変換前に戻せる）
@@ -252,12 +254,10 @@ class KookyKeyboardService : InputMethodService() {
         top.addView(gear, LinearLayout.LayoutParams(dp(40), match).apply { rightMargin = dp(4) })
         topIcons.add(gear)
 
-        val ts = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
-        val tabs = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        ts.addView(tabs)
+        // 空き（変換中はここに変換候補が出る）
+        val ts = View(this)
         top.addView(ts, LinearLayout.LayoutParams(0, match, 1f))
         tabScroll = ts
-        tabsRow = tabs
 
         val cs = HorizontalScrollView(this).apply {
             isHorizontalScrollBarEnabled = false
@@ -268,6 +268,12 @@ class KookyKeyboardService : InputMethodService() {
         top.addView(cs, LinearLayout.LayoutParams(0, match, 1f))
         candScroll = cs
         candRow = cr
+
+        // 定型文パネルの開閉
+        val phr = toolKey(R.drawable.ic_kb_phrase) { togglePhrases() }
+        top.addView(phr, LinearLayout.LayoutParams(dp(40), match).apply { leftMargin = dp(4) })
+        topIcons.add(phr)
+        phraseBtn = phr
 
         // 片手モードの切り替え（通常 ⇔ 右寄せ）
         val hand = toolKey(R.drawable.ic_kb_hand) { setOneHand(if (oneHand == 0) 1 else 0) }
@@ -281,20 +287,12 @@ class KookyKeyboardService : InputMethodService() {
 
         p.addView(top, LinearLayout.LayoutParams(match, sz(38)))
 
-        // 本体（12キー配置）：[左列 ↶ ◀ @ あA1][中央：あ/A/1/定型文][右列 ⌫ ▶ ␣ ↵]
+        // 本体（12キー配置）：[左列 ↶ ◀ @ あA1][中央：あ/A/1][右列 ⌫ ▶ ␣ ↵]
+        val bodyFrame = FrameLayout(this)
         val body = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         body.addView(leftColumn(), LinearLayout.LayoutParams(0, match, 1f))
 
         val area = FrameLayout(this)
-        val scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false }
-        val box = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(0, dp(2), 0, dp(2))
-        }
-        scroll.addView(box)
-        area.addView(scroll, FrameLayout.LayoutParams(match, match))
-        listBox = box
-        listScroll = scroll
 
         val jg = buildJaGrid()
         area.addView(jg, FrameLayout.LayoutParams(match, match))
@@ -313,8 +311,24 @@ class KookyKeyboardService : InputMethodService() {
 
         body.addView(area, LinearLayout.LayoutParams(0, match, 3f))
         body.addView(rightColumn(), LinearLayout.LayoutParams(0, match, 1f))
+        bodyFrame.addView(body, FrameLayout.LayoutParams(match, match))
+        keysRow = body
 
-        p.addView(body, LinearLayout.LayoutParams(match, sz(208)).apply { topMargin = dp(2) })
+        // 定型文パネル（開いている間はキーを隠す）
+        val scroll = ScrollView(this).apply {
+            isVerticalScrollBarEnabled = false
+            visibility = View.GONE
+        }
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(2), 0, dp(2), dp(6))
+        }
+        scroll.addView(box)
+        bodyFrame.addView(scroll, FrameLayout.LayoutParams(match, match))
+        listBox = box
+        listScroll = scroll
+
+        p.addView(bodyFrame, LinearLayout.LayoutParams(match, sz(208)).apply { topMargin = dp(2) })
 
         applyOneHand()
         render()
@@ -336,7 +350,7 @@ class KookyKeyboardService : InputMethodService() {
         // 設定画面で編集した内容を毎回読み直す
         categories = store.load()
         if (!restarting) tab = startTab(info)
-        if (tab >= categories.size + TAB_PHRASE) tab = inputMode
+        if (tab > TAB_PHRASE) tab = inputMode
         shift = 0
         applyOneHand()
         render()
@@ -581,82 +595,66 @@ class KookyKeyboardService : InputMethodService() {
     // ---------- タブと入力エリア ----------
 
     private fun render() {
-        val tabs = tabsRow ?: return
         val box = listBox ?: return
-
-        // 上のタブは定型文カテゴリ。定型文を表示中は先頭に「キーボードに戻る」タブを出す
-        tabs.removeAllViews()
-        if (tab >= TAB_PHRASE) {
-            val back = TextView(this).apply {
-                text = "← " + listOf("あ", "A", "1")[inputMode]
-                textSize = 14f
-                gravity = Gravity.CENTER
-                setPadding(dp(12), 0, dp(12), 0)
-                setTextColor(pal.accent)
-                typeface = Typeface.DEFAULT_BOLD
-                background = press(pal.key, dp(4).toFloat())
-                setOnClickListener {
-                    it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    backToKeyboard()
-                }
-            }
-            tabs.addView(back, LinearLayout.LayoutParams(wrap, match).apply { rightMargin = dp(5) })
-        }
-        categories.forEachIndexed { ci, c ->
-            val i = ci + TAB_PHRASE
-            val selected = i == tab
-            val chip = TextView(this).apply {
-                text = c.name
-                textSize = 13f
-                gravity = Gravity.CENTER
-                setPadding(dp(12), 0, dp(12), 0)
-                setTextColor(if (selected) pal.onAccent else pal.text)
-                typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-                background = press(if (selected) pal.accent else pal.card, dp(4).toFloat())
-                setOnClickListener {
-                    it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    // 選択中のタブをもう一度押したらキーボードに戻る
-                    if (selected) {
-                        backToKeyboard()
-                        return@setOnClickListener
-                    }
-                    commitAll()
-                    resetToggle()
-                    tab = i
-                    render()
-                    listScroll?.scrollTo(0, 0)
-                }
-            }
-            tabs.addView(chip, LinearLayout.LayoutParams(wrap, match).apply { rightMargin = dp(5) })
-        }
         updateModeKey()
 
+        val phrasesOpen = tab == TAB_PHRASE
+        keysRow?.visibility = if (phrasesOpen) View.INVISIBLE else View.VISIBLE
+        listScroll?.visibility = if (phrasesOpen) View.VISIBLE else View.GONE
         jaGrid?.visibility = if (tab == TAB_JA) View.VISIBLE else View.GONE
         enGrid?.visibility = if (tab == TAB_EN) View.VISIBLE else View.GONE
         numGrid?.visibility = if (tab == TAB_NUM) View.VISIBLE else View.GONE
-        listScroll?.visibility = if (tab >= TAB_PHRASE) View.VISIBLE else View.GONE
+        phraseBtn?.background = if (phrasesOpen) {
+            iconBg(pal.accent, dp(8).toFloat(), R.drawable.ic_kb_phrase, pal.onAccent)
+        } else {
+            iconBg(pal.card, dp(8).toFloat(), R.drawable.ic_kb_phrase, pal.sub)
+        }
 
         box.removeAllViews()
-        if (tab < TAB_PHRASE) return
-        val phrases = categories.getOrNull(tab - TAB_PHRASE)?.phrases ?: mutableListOf()
-        if (phrases.isEmpty()) {
+        if (!phrasesOpen) return
+
+        if (categories.all { it.phrases.isEmpty() }) {
             box.addView(TextView(this).apply {
                 text = "定型文がまだないよ。⚙ から追加してね"
                 setTextColor(pal.sub)
                 textSize = 12f
                 gravity = Gravity.CENTER
-                setPadding(0, dp(30), 0, 0)
+                setPadding(0, dp(40), 0, 0)
             })
             return
         }
 
-        // 2列で並べる
-        phrases.chunked(2).forEach { pair ->
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            pair.forEach { p -> row.addView(phraseCell(p), cellParams()) }
-            if (pair.size == 1) row.addView(View(this), cellParams())
-            box.addView(row, LinearLayout.LayoutParams(match, wrap).apply { bottomMargin = dp(4) })
+        // 全カテゴリを見出し付きで、1本の縦スクロールに並べる（定型文は2列）
+        for (c in categories) {
+            if (c.phrases.isEmpty()) continue
+            box.addView(TextView(this).apply {
+                text = c.name
+                setTextColor(pal.accent)
+                textSize = 12f
+                typeface = Typeface.DEFAULT_BOLD
+                setPadding(dp(4), dp(8), 0, dp(4))
+            })
+            c.phrases.chunked(2).forEach { pair ->
+                val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                pair.forEach { ph -> row.addView(phraseCell(ph), cellParams()) }
+                if (pair.size == 1) row.addView(View(this), cellParams())
+                box.addView(row, LinearLayout.LayoutParams(match, wrap).apply { bottomMargin = dp(4) })
+            }
         }
+    }
+
+    // 定型文パネルの開閉（開くときは入力中の文字を確定してから）
+    private fun togglePhrases() {
+        if (tab == TAB_PHRASE) {
+            backToKeyboard()
+            return
+        }
+        commitAll()
+        resetToggle()
+        cancelVoice()
+        tab = TAB_PHRASE
+        render()
+        listScroll?.scrollTo(0, 0)
     }
 
     private fun cellParams() = LinearLayout.LayoutParams(0, dp(42), 1f).apply {
