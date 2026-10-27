@@ -32,9 +32,14 @@ class MainActivity : Activity() {
     private var cats: MutableList<Category> = mutableListOf()
     private var current = 0
 
-    private lateinit var statusText: TextView
-    private lateinit var tabsRow: LinearLayout
-    private lateinit var listBox: LinearLayout
+    // 今表示しているページの部品（ページを切り替えると作り直す）
+    private var statusText: TextView? = null
+    private var tabsRow: LinearLayout? = null
+    private var listBox: LinearLayout? = null
+
+    private lateinit var scrollView: ScrollView
+    private lateinit var col: LinearLayout
+    private var page = "top"
 
     private val match = ViewGroup.LayoutParams.MATCH_PARENT
     private val wrap = ViewGroup.LayoutParams.WRAP_CONTENT
@@ -46,64 +51,140 @@ class MainActivity : Activity() {
         window.statusBarColor = Ui.BG
         window.navigationBarColor = Ui.BG
 
-        val scroll = ScrollView(this).apply {
+        scrollView = ScrollView(this).apply {
             setBackgroundColor(Ui.BG)
             isFillViewport = true
         }
-        val col = LinearLayout(this).apply {
+        col = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(24), dp(16), dp(48))
         }
-        scroll.addView(col)
-        setContentView(scroll)
+        scrollView.addView(col)
+        setContentView(scrollView)
+        showPage("top")
+    }
 
+    // ---------- ページの切り替え ----------
+
+    // 各ページの名前（メニューの見出し・説明）
+    private val pages = listOf(
+        Triple("start", "はじめに", "キーボードの有効化・切り替え・試し打ち"),
+        Triple("phrase", "定型文", "定型文とカテゴリの編集・バックアップ"),
+        Triple("look", "見た目", "高さ・片手の幅・色・透過"),
+        Triple("voice", "音声入力・AI添削", "マイクの許可・Gemini APIキー"),
+        Triple("conv", "日本語変換", "単語登録・学習のリセット・辞書"),
+        Triple("update", "アップデート", "最新版のダウンロード")
+    )
+
+    private fun showPage(p: String) {
+        page = p
+        statusText = null
+        tabsRow = null
+        listBox = null
+        micStatus = null
+        userBox = null
+        col.removeAllViews()
+        scrollView.scrollTo(0, 0)
+
+        if (p == "top") {
+            buildTop()
+        } else {
+            pageHeader(pages.firstOrNull { it.first == p }?.second ?: "")
+            when (p) {
+                "start" -> buildStart()
+                "phrase" -> buildPhrase()
+                "look" -> buildLook()
+                "voice" -> buildVoice()
+                "conv" -> buildConv()
+                "update" -> buildUpdate()
+            }
+        }
+        updateStatus()
+        updateMicStatus()
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        if (page != "top") showPage("top") else super.onBackPressed()
+    }
+
+    // サブページの見出し：‹ 戻る ＋ タイトル
+    private fun pageHeader(title: String) {
+        col.addView(text("‹ 設定に戻る", 14f, Ui.ORANGE, bold = true).apply {
+            setPadding(0, dp(4), dp(16), dp(12))
+            setOnClickListener { showPage("top") }
+        })
+        col.addView(text(title, 22f, Ui.TEXT, bold = true))
+    }
+
+    private fun buildTop() {
         col.addView(text("KOOKY KEYBOARD", 22f, Ui.ORANGE, bold = true))
-        col.addView(text("定型文キーボード v0.18", 12f, Ui.SUB))
+        col.addView(text("定型文キーボード v${currentVersion()}", 12f, Ui.SUB))
 
-        // --- はじめに ---
-        col.addView(section("はじめに"))
-        statusText = text("", 13f, Ui.TEXT)
-        col.addView(statusText)
+        // 今の状態（有効・選択中か）
+        val st = text("", 13f, Ui.TEXT).apply {
+            background = Ui.round(Ui.CARD, dp(10).toFloat())
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+        }
+        statusText = st
+        col.addView(st, LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(16) })
+
+        col.addView(text("設定", 13f, Ui.SUB).apply { setPadding(dp(4), dp(20), 0, dp(2)) })
+        for ((key, title, sub) in pages) col.addView(menuRow(title, sub) { showPage(key) }, blockParams())
+    }
+
+    private fun menuRow(title: String, sub: String, onClick: () -> Unit): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = Ui.pressable(Ui.CARD, dp(12).toFloat())
+            setPadding(dp(16), dp(14), dp(14), dp(14))
+            setOnClickListener { onClick() }
+        }
+        val texts = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        texts.addView(text(title, 16f, Ui.TEXT, bold = true))
+        texts.addView(text(sub, 12f, Ui.SUB).apply { setPadding(0, dp(2), 0, 0) })
+        row.addView(texts, LinearLayout.LayoutParams(0, wrap, 1f))
+        row.addView(text("›", 22f, Ui.SUB))
+        return row
+    }
+
+    private fun testField(): View = EditText(this).apply {
+        hint = "ここで試し打ち"
+        setTextColor(Ui.TEXT)
+        setHintTextColor(Ui.SUB)
+        background = Ui.round(Ui.CARD, dp(10).toFloat())
+        setPadding(dp(12), dp(12), dp(12), dp(12))
+        minLines = 2
+        gravity = Gravity.TOP
+    }
+
+    // ---------- はじめに ----------
+    private fun buildStart() {
+        val st = text("", 13f, Ui.TEXT).apply { setPadding(0, dp(12), 0, 0) }
+        statusText = st
+        col.addView(st)
         col.addView(button("① キーボードを有効にする", Ui.KEY) {
             startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
         }, blockParams())
         col.addView(button("② キーボードを切り替える", Ui.KEY) {
             imm().showInputMethodPicker()
         }, blockParams())
-        val test = EditText(this).apply {
-            hint = "ここで試し打ち"
-            setTextColor(Ui.TEXT)
-            setHintTextColor(Ui.SUB)
-            background = Ui.round(Ui.CARD, dp(10).toFloat())
-            setPadding(dp(12), dp(12), dp(12), dp(12))
-            minLines = 2
-            gravity = Gravity.TOP
-        }
-        col.addView(test, blockParams())
+        col.addView(testField(), blockParams())
+    }
 
-        // --- キーボードのサイズ ---
-        col.addView(section("キーボードのサイズ"))
-        col.addView(text("上の試し打ち欄でキーボードを開いたまま調整できるよ", 11f, Ui.SUB))
-        col.addView(sizeSlider("高さ", "height_pct", 100, 70, 150), blockParams())
-        col.addView(sizeSlider("片手モードの幅", "onehand_pct", 78, 55, 95), blockParams())
-
-        // --- キーボードの色 ---
-        col.addView(section("キーボードの色"))
-        col.addView(themePicker(), blockParams())
-        col.addView(sizeSlider("背景の透過率", "bg_trans", 0, 0, 90), blockParams())
-        col.addView(sizeSlider("キーの透過率", "key_trans", 0, 0, 90), blockParams())
-        col.addView(text("どちらも文字は透けないよ", 11f, Ui.SUB))
-
-        // --- 定型文 ---
-        col.addView(section("定型文"))
-        col.addView(text("タブ長押しでカテゴリ名の変更・削除", 11f, Ui.SUB))
+    // ---------- 定型文 ----------
+    private fun buildPhrase() {
+        col.addView(text("タブ長押しでカテゴリ名の変更・削除", 11f, Ui.SUB).apply { setPadding(0, dp(8), 0, 0) })
         val tabScroll = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
-        tabsRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        tabScroll.addView(tabsRow)
+        val tr = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        tabScroll.addView(tr)
+        tabsRow = tr
         col.addView(tabScroll, LinearLayout.LayoutParams(match, dp(40)).apply { topMargin = dp(8) })
 
-        listBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        col.addView(listBox, LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(8) })
+        val lb = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        listBox = lb
+        col.addView(lb, LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(8) })
 
         val addRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         addRow.addView(button("＋ 定型文", Ui.ORANGE) { editPhrase(-1) },
@@ -112,27 +193,45 @@ class MainActivity : Activity() {
             LinearLayout.LayoutParams(0, dp(46), 1f).apply { leftMargin = dp(4) })
         col.addView(addRow, blockParams())
 
-        // --- バックアップ ---
         col.addView(section("バックアップ"))
         col.addView(text("機種変更や入れ直しのときに使ってね", 11f, Ui.SUB))
         col.addView(button("書き出し（クリップボードにコピー）", Ui.KEY) { exportData() }, blockParams())
         col.addView(button("読み込み（クリップボードから）", Ui.KEY) { importData() }, blockParams())
+        render()
+    }
 
-        // --- アップデート ---
-        col.addView(section("アップデート"))
-        col.addView(text("今のバージョン：v${currentVersion()}", 11f, Ui.SUB))
-        col.addView(button("最新版をダウンロード", Ui.ORANGE) { openUpdatePage() }, blockParams())
+    // ---------- 見た目 ----------
+    private fun buildLook() {
+        col.addView(text("下の試し打ち欄でキーボードを開き直すと反映されるよ", 11f, Ui.SUB).apply { setPadding(0, dp(8), 0, 0) })
+        col.addView(testField(), blockParams())
 
-        // --- 音声入力・AI添削 ---
-        col.addView(section("音声入力・AI添削"))
-        col.addView(text("キーボードの🎤で話す →「完了」でAIがビジネス敬語に整えて自動で入力するよ", 11f, Ui.SUB))
+        col.addView(section("サイズ"))
+        col.addView(sizeSlider("高さ", "height_pct", 100, 70, 150), blockParams())
+        col.addView(sizeSlider("片手モードの幅", "onehand_pct", 78, 55, 95), blockParams())
+
+        col.addView(section("色"))
+        col.addView(themePicker(), blockParams())
+
+        col.addView(section("透過"))
+        col.addView(sizeSlider("背景の透過率", "bg_trans", 0, 0, 90), blockParams())
+        col.addView(sizeSlider("キーの透過率", "key_trans", 0, 0, 90), blockParams())
+        col.addView(text("どちらも文字は透けないよ", 11f, Ui.SUB))
+    }
+
+    // ---------- 音声入力・AI添削 ----------
+    private fun buildVoice() {
+        col.addView(text("キーボードのマイクで話す →「添削して入力」でAIがビジネス敬語に整えて自動で入力するよ", 11f, Ui.SUB)
+            .apply { setPadding(0, dp(8), 0, 0) })
+
+        col.addView(section("マイク"))
         val ms = text("", 13f, Ui.TEXT)
         micStatus = ms
-        col.addView(ms, blockParams())
+        col.addView(ms)
         col.addView(button("マイクの使用を許可", Ui.KEY) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 10)
         }, blockParams())
 
+        col.addView(section("Gemini API"))
         val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
         val keyEdit = EditText(this).apply {
             hint = "Gemini APIキー"
@@ -178,20 +277,11 @@ class MainActivity : Activity() {
             "⚠ Gemini APIの無料枠では、送った文章がGoogleのサービス改善に使われることがあるよ。" +
                 "お客様の名前・電話番号などの個人情報は話さないようにしてね。",
             11f, Ui.ORANGE
-        ).apply { setPadding(0, dp(8), 0, 0) })
+        ).apply { setPadding(0, dp(12), 0, 0) })
+    }
 
-        // --- 日本語変換 ---
-        col.addView(section("日本語変換"))
-        col.addView(text("選んだ変換は覚えて、次から先に出すよ", 11f, Ui.SUB))
-        col.addView(button("変換の学習をリセット", Ui.KEY) {
-            confirm("覚えた変換をすべて消す？") {
-                Dict(this).clearLearning()
-                toast("リセットしたよ")
-            }
-        }, blockParams())
-        col.addView(button("辞書のライセンス", Ui.KEY) { showDictLicense() }, blockParams())
-
-        // --- 単語登録 ---
+    // ---------- 日本語変換 ----------
+    private fun buildConv() {
         col.addView(section("単語登録"))
         col.addView(text("店名・商品名・人の名前など、よく使う言葉を登録すると変換で優先して出るよ", 11f, Ui.SUB))
         val ub = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -200,7 +290,23 @@ class MainActivity : Activity() {
         col.addView(button("＋ 単語を登録", Ui.ORANGE) { editUserWord(null) }, blockParams())
         renderUserWords()
 
-        render()
+        col.addView(section("学習"))
+        col.addView(text("選んだ変換は覚えて、次から先に出すよ", 11f, Ui.SUB))
+        col.addView(button("変換の学習をリセット", Ui.KEY) {
+            confirm("覚えた変換をすべて消す？") {
+                Dict(this).clearLearning()
+                toast("リセットしたよ")
+            }
+        }, blockParams())
+
+        col.addView(section("辞書"))
+        col.addView(button("辞書のライセンス", Ui.KEY) { showDictLicense() }, blockParams())
+    }
+
+    // ---------- アップデート ----------
+    private fun buildUpdate() {
+        col.addView(text("今のバージョン：v${currentVersion()}", 13f, Ui.SUB).apply { setPadding(0, dp(12), 0, 0) })
+        col.addView(button("最新版をダウンロード", Ui.ORANGE) { openUpdatePage() }, blockParams())
     }
 
     // ---------- 単語登録 ----------
@@ -387,7 +493,8 @@ class MainActivity : Activity() {
     }
 
     private fun updateStatus() {
-        statusText.text = when {
+        val st = statusText ?: return
+        st.text = when {
             !isEnabled() -> "⚠ まだ有効になってないよ。①から有効にしてね"
             !isSelected() -> "✅ 有効になってる。②で切り替えると使えるよ"
             else -> "✅ 今このキーボードが選ばれてるよ"
@@ -402,6 +509,9 @@ class MainActivity : Activity() {
     }
 
     private fun render() {
+        // 定型文ページを開いていないときは何もしない
+        val tabsRow = tabsRow ?: return
+        val listBox = listBox ?: return
         if (current >= cats.size) current = maxOf(0, cats.size - 1)
 
         tabsRow.removeAllViews()
