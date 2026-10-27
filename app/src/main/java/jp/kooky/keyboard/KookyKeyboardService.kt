@@ -584,8 +584,24 @@ class KookyKeyboardService : InputMethodService() {
         val tabs = tabsRow ?: return
         val box = listBox ?: return
 
-        // 上のタブは定型文カテゴリだけ（あ/A/1 は下段の入力切替キー）
+        // 上のタブは定型文カテゴリ。定型文を表示中は先頭に「キーボードに戻る」タブを出す
         tabs.removeAllViews()
+        if (tab >= TAB_PHRASE) {
+            val back = TextView(this).apply {
+                text = "← " + listOf("あ", "A", "1")[inputMode]
+                textSize = 14f
+                gravity = Gravity.CENTER
+                setPadding(dp(12), 0, dp(12), 0)
+                setTextColor(pal.accent)
+                typeface = Typeface.DEFAULT_BOLD
+                background = press(pal.key, dp(4).toFloat())
+                setOnClickListener {
+                    it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    backToKeyboard()
+                }
+            }
+            tabs.addView(back, LinearLayout.LayoutParams(wrap, match).apply { rightMargin = dp(5) })
+        }
         categories.forEachIndexed { ci, c ->
             val i = ci + TAB_PHRASE
             val selected = i == tab
@@ -599,10 +615,14 @@ class KookyKeyboardService : InputMethodService() {
                 background = press(if (selected) pal.accent else pal.card, dp(4).toFloat())
                 setOnClickListener {
                     it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    // 選択中のタブをもう一度押したらキーボードに戻る
+                    if (selected) {
+                        backToKeyboard()
+                        return@setOnClickListener
+                    }
                     commitAll()
                     resetToggle()
                     tab = i
-                    userTab = i
                     render()
                     listScroll?.scrollTo(0, 0)
                 }
@@ -1020,6 +1040,14 @@ class KookyKeyboardService : InputMethodService() {
         }
         toggleKey = if (isTap) chars else null
         toggleTime = now
+    }
+
+    // 定型文から、直前の入力モード（あ/A/1）のキーボードに戻る
+    private fun backToKeyboard() {
+        tab = inputMode
+        userTab = inputMode
+        render()
+        tabScroll?.scrollTo(0, 0)
     }
 
     private fun switchMode() {
