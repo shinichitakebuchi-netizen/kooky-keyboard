@@ -15,6 +15,23 @@ object Kana {
     val WA = arrayOf("わ", "を", "ん", "ー", "")
     val PUNCT = arrayOf("、", "。", "？", "！", "…")
 
+    // 英語フリック（ラベル, [タップ, 左, 上, 右, 下]）
+    val EN_ROWS = listOf(
+        listOf("@#/&_" to arrayOf("@", "#", "/", "&", "_"), "abc" to arrayOf("a", "b", "c", "", ""), "def" to arrayOf("d", "e", "f", "", "")),
+        listOf("ghi" to arrayOf("g", "h", "i", "", ""), "jkl" to arrayOf("j", "k", "l", "", ""), "mno" to arrayOf("m", "n", "o", "", "")),
+        listOf("pqrs" to arrayOf("p", "q", "r", "s", ""), "tuv" to arrayOf("t", "u", "v", "", ""), "wxyz" to arrayOf("w", "x", "y", "z", ""))
+    )
+    val EN_QUOTE = "'\"()" to arrayOf("'", "\"", "(", ")", "")
+    val EN_PUNCT = ".,?!" to arrayOf(".", ",", "?", "!", "")
+
+    // 数字フリック
+    val NUM_ROWS = listOf(
+        listOf("1" to arrayOf("1", "☆", "♪", "→", ""), "2" to arrayOf("2", "¥", "$", "€", ""), "3" to arrayOf("3", "%", "°", "#", "")),
+        listOf("4" to arrayOf("4", "○", "*", "・", ""), "5" to arrayOf("5", "+", "×", "÷", ""), "6" to arrayOf("6", "<", "=", ">", "")),
+        listOf("7" to arrayOf("7", "「", "」", ":", ""), "8" to arrayOf("8", "〒", "々", "〆", ""), "9" to arrayOf("9", "^", "|", "\\", "")),
+        listOf("()[]" to arrayOf("(", ")", "[", "]", ""), "0" to arrayOf("0", "〜", "…", "", ""), ".,-/" to arrayOf(".", ",", "-", "/", ""))
+    )
+
     // 「小゛゜」キーで順番に切り替わる組み合わせ
     private val cycles = listOf(
         "かが", "きぎ", "くぐ", "けげ", "こご",
