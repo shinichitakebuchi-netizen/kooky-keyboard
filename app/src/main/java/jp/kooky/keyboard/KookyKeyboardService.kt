@@ -1249,7 +1249,7 @@ class KookyKeyboardService : InputMethodService() {
             val result = try {
                 Result.success(Gemini.correct(apiKey, model, raw))
             } catch (e: Exception) {
-                Result.failure<String>(e)
+                Result.failure<Gemini.Result>(e)
             }
             handler.post {
                 if (token != voiceToken || voiceStage != 2) return@post
