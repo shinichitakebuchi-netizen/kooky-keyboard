@@ -345,6 +345,7 @@ class KookyKeyboardService : InputMethodService() {
         stopRepeat()
         clearComposingState()
         dict.prepare()
+        if (dict.ready) dict.reloadUserIfChanged()
         // サイズ・色・透過率が変わっていたらキーボードを作り直す
         if (lookKey() != builtLook) setInputView(onCreateInputView())
         // 設定画面で編集した内容を毎回読み直す
@@ -860,7 +861,7 @@ class KookyKeyboardService : InputMethodService() {
         ic.commitText(c.word, 1)
         lastCommit = c.word
         lastReading = reading
-        dict.learn(reading, c.word)
+        dict.learn(reading, c.word, c.segs)
         composing.delete(0, c.len)
         resetToggle()
         updateComposing()

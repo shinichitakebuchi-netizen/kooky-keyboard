@@ -58,7 +58,7 @@ class MainActivity : Activity() {
         setContentView(scroll)
 
         col.addView(text("KOOKY KEYBOARD", 22f, Ui.ORANGE, bold = true))
-        col.addView(text("定型文キーボード v0.17", 12f, Ui.SUB))
+        col.addView(text("定型文キーボード v0.18", 12f, Ui.SUB))
 
         // --- はじめに ---
         col.addView(section("はじめに"))
@@ -191,7 +191,98 @@ class MainActivity : Activity() {
         }, blockParams())
         col.addView(button("辞書のライセンス", Ui.KEY) { showDictLicense() }, blockParams())
 
+        // --- 単語登録 ---
+        col.addView(section("単語登録"))
+        col.addView(text("店名・商品名・人の名前など、よく使う言葉を登録すると変換で優先して出るよ", 11f, Ui.SUB))
+        val ub = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        col.addView(ub, LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(8) })
+        userBox = ub
+        col.addView(button("＋ 単語を登録", Ui.ORANGE) { editUserWord(null) }, blockParams())
+        renderUserWords()
+
         render()
+    }
+
+    // ---------- 単語登録 ----------
+
+    private var userBox: LinearLayout? = null
+
+    private fun renderUserWords() {
+        val box = userBox ?: return
+        box.removeAllViews()
+        val list = Dict(this).userWords()
+        if (list.isEmpty()) {
+            box.addView(text("まだ登録がないよ", 13f, Ui.SUB))
+            return
+        }
+        for ((r, w) in list) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                background = Ui.pressable(Ui.CARD, dp(10).toFloat())
+                setPadding(dp(12), dp(10), dp(12), dp(10))
+                setOnClickListener { editUserWord(r to w) }
+            }
+            row.addView(text(w, 15f, Ui.TEXT, bold = true), LinearLayout.LayoutParams(0, wrap, 1f))
+            row.addView(text(r, 13f, Ui.SUB))
+            box.addView(row, LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(6) })
+        }
+    }
+
+    // 読みはひらがな（カタカナで入れても、ひらがなに直して保存）
+    private fun toHiragana(s: String): String {
+        val sb = StringBuilder()
+        for (ch in s.trim()) sb.append(if (ch in '\u30A1'..'\u30F6') ch - 0x60 else ch)
+        return sb.toString()
+    }
+
+    private fun editUserWord(old: Pair<String, String>?) {
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), 0)
+        }
+        val wordEdit = EditText(this).apply {
+            hint = "単語（例：前橋モール店）"
+            setText(old?.second ?: "")
+            setSingleLine()
+        }
+        val readEdit = EditText(this).apply {
+            hint = "読み（ひらがな。例：まえばしもーるてん）"
+            setText(old?.first ?: "")
+            setSingleLine()
+        }
+        box.addView(wordEdit)
+        box.addView(readEdit)
+        val builder = AlertDialog.Builder(this)
+            .setTitle(if (old == null) "単語を登録" else "登録を編集")
+            .setView(box)
+            .setPositiveButton("保存") { _, _ ->
+                val w = wordEdit.text.toString().trim()
+                val r = toHiragana(readEdit.text.toString())
+                if (w.isEmpty() || r.isEmpty()) {
+                    toast("単語と読みを両方入れてね")
+                    return@setPositiveButton
+                }
+                if (!r.all { it in '\u3041'..'\u3096' || it == 'ー' }) {
+                    toast("読みはひらがなで入れてね")
+                    return@setPositiveButton
+                }
+                val d = Dict(this)
+                if (old != null) d.removeUserWord(old.first, old.second)
+                d.addUserWord(r, w)
+                renderUserWords()
+                toast("登録したよ")
+            }
+            .setNegativeButton("キャンセル", null)
+        if (old != null) {
+            builder.setNeutralButton("削除") { _, _ ->
+                confirm("「${old.second}」の登録を消す？") {
+                    Dict(this).removeUserWord(old.first, old.second)
+                    renderUserWords()
+                }
+            }
+        }
+        builder.show()
     }
 
     // 変換辞書（Mozc OSS辞書／IPAdic等）のライセンス表示
