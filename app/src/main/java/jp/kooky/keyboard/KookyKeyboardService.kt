@@ -7,6 +7,8 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.LayerDrawable
 import android.inputmethodservice.InputMethodService
 import android.os.Build
 import android.os.Handler
@@ -108,6 +110,17 @@ class KookyKeyboardService : InputMethodService() {
     // 押したときの波紋（ライトは暗め、それ以外は明るめ）
     private fun press(color: Int, radius: Float) =
         Ui.pressable(keyColor(color), radius, if (pal === Themes.LIGHT) 0x22000000 else 0x33FFFFFF)
+
+    // 手作りアイコンを背景の真ん中に重ねる（押したときの波紋もそのまま）
+    private fun iconBg(color: Int, radius: Float, icon: Int, tint: Int, sizeDp: Int = 22): Drawable {
+        val bg = press(color, radius)
+        val d = getDrawable(icon)?.mutate() ?: return bg
+        d.setTint(tint)
+        val ld = LayerDrawable(arrayOf(bg, d))
+        ld.setLayerGravity(1, Gravity.CENTER)
+        ld.setLayerSize(1, dp(sizeDp), dp(sizeDp))
+        return ld
+    }
 
     // キーの透過率をかけた色（文字は透けない）
     private var keyTrans = 0
@@ -230,7 +243,7 @@ class KookyKeyboardService : InputMethodService() {
         }
 
         // ⚙ タップ：設定画面 / 長押し：キーボードの切り替え
-        val gear = toolKey("⚙", 18f) { openSettings() }
+        val gear = toolKey(R.drawable.ic_kb_gear) { openSettings() }
         gear.setOnLongClickListener {
             commitAll()
             imm().showInputMethodPicker()
@@ -257,12 +270,12 @@ class KookyKeyboardService : InputMethodService() {
         candRow = cr
 
         // 片手モードの切り替え（通常 ⇔ 右寄せ）
-        val hand = toolKey("片手", 12f) { setOneHand(if (oneHand == 0) 1 else 0) }
+        val hand = toolKey(R.drawable.ic_kb_hand) { setOneHand(if (oneHand == 0) 1 else 0) }
         top.addView(hand, LinearLayout.LayoutParams(dp(44), match).apply { leftMargin = dp(4) })
         topIcons.add(hand)
 
         // 🎤 音声入力 → AIでビジネス敬語に添削 → 自動で入力
-        val mic = toolKey("🎤", 18f) { startVoice() }
+        val mic = toolKey(R.drawable.ic_kb_mic) { startVoice() }
         top.addView(mic, LinearLayout.LayoutParams(dp(40), match).apply { leftMargin = dp(4) })
         topIcons.add(mic)
 
@@ -416,19 +429,22 @@ class KookyKeyboardService : InputMethodService() {
             gravity = Gravity.CENTER
             visibility = View.GONE
         }
-        col.addView(roundBtn("⤢") { setOneHand(0) },
+        col.addView(roundBtn(R.drawable.ic_kb_expand, true) { setOneHand(0) },
             LinearLayout.LayoutParams(dp(48), dp(48)).apply { bottomMargin = dp(20) })
-        col.addView(roundBtn(if (isLeft) "‹" else "›") { setOneHand(if (isLeft) 2 else 1) },
+        col.addView(roundBtn(if (isLeft) R.drawable.ic_kb_left else R.drawable.ic_kb_right, false) {
+            setOneHand(if (isLeft) 2 else 1)
+        },
             LinearLayout.LayoutParams(dp(48), dp(48)))
         return col
     }
 
-    private fun roundBtn(label: String, onClick: () -> Unit): TextView = TextView(this).apply {
-        text = label
-        textSize = 20f
-        gravity = Gravity.CENTER
-        setTextColor(pal.text)
-        background = press(pal.card, dp(24).toFloat())
+    // 丸ボタン（strong=true はオレンジ：透過時でも見つけやすく）
+    private fun roundBtn(icon: Int, strong: Boolean, onClick: () -> Unit): TextView = TextView(this).apply {
+        background = if (strong) {
+            iconBg(pal.accent, dp(24).toFloat(), icon, pal.onAccent, 24)
+        } else {
+            iconBg(pal.card, dp(24).toFloat(), icon, pal.text, 24)
+        }
         setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
             onClick()
@@ -436,12 +452,8 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     // ツールバーのアイコン
-    private fun toolKey(label: String, size: Float, onClick: () -> Unit): TextView = TextView(this).apply {
-        text = label
-        textSize = size
-        gravity = Gravity.CENTER
-        setTextColor(pal.sub)
-        background = press(pal.card, dp(8).toFloat())
+    private fun toolKey(icon: Int, onClick: () -> Unit): TextView = TextView(this).apply {
+        background = iconBg(pal.card, dp(8).toFloat(), icon, pal.sub)
         setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
             onClick()
@@ -452,16 +464,16 @@ class KookyKeyboardService : InputMethodService() {
     private fun leftColumn(): View {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
 
-        col.addView(key("↶", pal.key).apply {
-            textSize = 20f
+        col.addView(key("", pal.key).apply {
+            background = iconBg(pal.key, dp(8).toFloat(), R.drawable.ic_kb_undo, pal.text)
             setOnClickListener {
                 it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                 undo()
             }
         }, colParams())
 
-        col.addView(key("◀", pal.key).apply {
-            textSize = 15f
+        col.addView(key("", pal.key).apply {
+            background = iconBg(pal.key, dp(8).toFloat(), R.drawable.ic_kb_left, pal.text)
             repeatable(this) { cursor(KeyEvent.KEYCODE_DPAD_LEFT) }
         }, colParams())
 
@@ -498,26 +510,23 @@ class KookyKeyboardService : InputMethodService() {
     private fun rightColumn(): View {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
 
-        col.addView(key("⌫", pal.key).apply {
-            textSize = 19f
+        col.addView(key("", pal.key).apply {
+            background = iconBg(pal.key, dp(8).toFloat(), R.drawable.ic_kb_back, pal.text)
             repeatable(this) { backspace() }
         }, colParams())
 
-        col.addView(key("▶", pal.key).apply {
-            textSize = 15f
+        col.addView(key("", pal.key).apply {
+            background = iconBg(pal.key, dp(8).toFloat(), R.drawable.ic_kb_right, pal.text)
             repeatable(this) { cursor(KeyEvent.KEYCODE_DPAD_RIGHT) }
         }, colParams())
 
-        val sp = key("␣", pal.key).apply {
-            textSize = 18f
+        val sp = key("", pal.key).apply {
             setOnClickListener { space(it) }
         }
         col.addView(sp, colParams())
         spaceKey = sp
 
-        val ek = key("↵", pal.accent).apply {
-            textSize = 22f
-            background = press(pal.accent, dp(22).toFloat())
+        val ek = key("", pal.accent).apply {
             setOnClickListener {
                 it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                 enterPressed()
@@ -869,12 +878,16 @@ class KookyKeyboardService : InputMethodService() {
         for (v in topIcons) v.visibility = if (active) View.GONE else View.VISIBLE
 
         spaceKey?.apply {
-            text = if (active) "変換" else "␣"
-            textSize = if (active) 14f else 18f
+            text = if (active) "変換" else ""
+            textSize = 14f
+            background = if (active) press(pal.key, dp(8).toFloat())
+            else iconBg(pal.key, dp(8).toFloat(), R.drawable.ic_kb_space, pal.text)
         }
         for (ek in enterKeys) {
-            ek.text = if (active) "確定" else "↵"
-            ek.textSize = if (active) 15f else 22f
+            ek.text = if (active) "確定" else ""
+            ek.textSize = 15f
+            ek.background = if (active) press(pal.accent, dp(22).toFloat())
+            else iconBg(pal.accent, dp(22).toFloat(), R.drawable.ic_kb_enter, pal.onAccent, 24)
         }
 
         row.removeAllViews()
