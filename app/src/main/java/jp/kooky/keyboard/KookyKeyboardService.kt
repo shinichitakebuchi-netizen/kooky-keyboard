@@ -199,6 +199,24 @@ class KookyKeyboardService : InputMethodService() {
         store = PhraseStore(this)
         dict = Dict(this)
         dict.prepare()
+        prefs().registerOnSharedPreferenceChangeListener(lookListener)
+    }
+
+    // 見た目の設定（高さ・色・透過など）が変わったら、表示中のキーボードをすぐ作り直す
+    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans")
+    private val rebuildLook = Runnable {
+        if (isInputViewShown && lookKey() != builtLook) {
+            stopRepeat()
+            cancelVoice()
+            commitAll()
+            setInputView(onCreateInputView())
+        }
+    }
+    private val lookListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key != null && key in lookKeys) {
+            handler.removeCallbacks(rebuildLook)
+            handler.postDelayed(rebuildLook, 120)
+        }
     }
 
     override fun onCreateInputView(): View {
@@ -378,6 +396,8 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     override fun onDestroy() {
+        prefs().unregisterOnSharedPreferenceChangeListener(lookListener)
+        handler.removeCallbacks(rebuildLook)
         stopRepeat()
         cancelVoice()
         super.onDestroy()

@@ -17,6 +17,7 @@ import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.HorizontalScrollView
@@ -86,6 +87,15 @@ class MainActivity : Activity() {
         col.removeAllViews()
         scrollView.scrollTo(0, 0)
 
+        // 見た目ページだけ、キーボードを画面の上に重ねて出す（後ろの背景が透けて見えるように）
+        if (p == "look") {
+            window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
+            setContentView(buildLookRoot())
+            return
+        }
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        if (scrollView.parent == null) setContentView(scrollView)
+
         if (p == "top") {
             buildTop()
         } else {
@@ -93,7 +103,6 @@ class MainActivity : Activity() {
             when (p) {
                 "start" -> buildStart()
                 "phrase" -> buildPhrase()
-                "look" -> buildLook()
                 "voice" -> buildVoice()
                 "conv" -> buildConv()
                 "update" -> buildUpdate()
@@ -192,6 +201,7 @@ class MainActivity : Activity() {
         addRow.addView(button("＋ カテゴリ", Ui.KEY) { editCategory(-1) },
             LinearLayout.LayoutParams(0, dp(46), 1f).apply { leftMargin = dp(4) })
         col.addView(addRow, blockParams())
+        col.addView(button("カテゴリの並べ替え", Ui.KEY) { sortCategories() }, blockParams())
 
         col.addView(section("バックアップ"))
         col.addView(text("機種変更や入れ直しのときに使ってね", 11f, Ui.SUB))
@@ -201,21 +211,65 @@ class MainActivity : Activity() {
     }
 
     // ---------- 見た目 ----------
-    private fun buildLook() {
-        col.addView(text("下の試し打ち欄でキーボードを開き直すと反映されるよ", 11f, Ui.SUB).apply { setPadding(0, dp(8), 0, 0) })
-        col.addView(testField(), blockParams())
+    // 上：試し打ち欄と調整項目（スクロール）／下：透過を確認するための背景（キーボードの後ろに来る）
+    private fun buildLookRoot(): View {
+        val frame = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Ui.BG)
+        }
 
-        col.addView(section("サイズ"))
-        col.addView(sizeSlider("高さ", "height_pct", 100, 70, 150), blockParams())
-        col.addView(sizeSlider("片手モードの幅", "onehand_pct", 78, 55, 95), blockParams())
+        val sv = ScrollView(this)
+        val c = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(24), dp(16), dp(24))
+        }
+        sv.addView(c)
+        frame.addView(sv, LinearLayout.LayoutParams(match, 0, 1f))
 
-        col.addView(section("色"))
-        col.addView(themePicker(), blockParams())
+        c.addView(text("‹ 設定に戻る", 14f, Ui.ORANGE, bold = true).apply {
+            setPadding(0, dp(4), dp(16), dp(12))
+            setOnClickListener { showPage("top") }
+        })
+        c.addView(text("見た目", 22f, Ui.TEXT, bold = true))
+        c.addView(text("試し打ち欄をタップしてキーボードを出したまま調整すると、その場で反映されるよ", 11f, Ui.SUB)
+            .apply { setPadding(0, dp(8), 0, 0) })
+        c.addView(testField(), blockParams())
 
-        col.addView(section("透過"))
-        col.addView(sizeSlider("背景の透過率", "bg_trans", 0, 0, 90), blockParams())
-        col.addView(sizeSlider("キーの透過率", "key_trans", 0, 0, 90), blockParams())
-        col.addView(text("どちらも文字は透けないよ", 11f, Ui.SUB))
+        c.addView(section("透過"))
+        c.addView(sizeSlider("背景の透過率", "bg_trans", 0, 0, 90), blockParams())
+        c.addView(sizeSlider("キーの透過率", "key_trans", 0, 0, 90), blockParams())
+
+        c.addView(section("色"))
+        c.addView(themePicker(), blockParams())
+
+        c.addView(section("サイズ"))
+        c.addView(sizeSlider("高さ", "height_pct", 100, 70, 150), blockParams())
+        c.addView(sizeSlider("片手モードの幅", "onehand_pct", 78, 55, 95), blockParams())
+
+        // 確認用の背景：キーボードはこの上に重なる
+        frame.addView(previewBackdrop(), LinearLayout.LayoutParams(match, dp(320)))
+        return frame
+    }
+
+    // カラフルな縞模様＋文字。透過率を上げるとキーボードの後ろに見える
+    private fun previewBackdrop(): View {
+        val fl = android.widget.FrameLayout(this)
+        val stripes = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val colors = listOf("#F28C28", "#F2F0EB", "#2F6FD6", "#14213D", "#E04F5F", "#3BAA6E")
+        for (hex in colors) {
+            stripes.addView(View(this).apply { setBackgroundColor(android.graphics.Color.parseColor(hex)) },
+                LinearLayout.LayoutParams(0, match, 1f))
+        }
+        fl.addView(stripes, android.widget.FrameLayout.LayoutParams(match, match))
+        fl.addView(TextView(this).apply {
+            text = "透過の確認用の背景\nKOOKY KEYBOARD"
+            textSize = 22f
+            setTextColor(android.graphics.Color.WHITE)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setShadowLayer(6f, 0f, 2f, android.graphics.Color.BLACK)
+        }, android.widget.FrameLayout.LayoutParams(match, match))
+        return fl
     }
 
     // ---------- 音声入力・AI添削 ----------
@@ -584,7 +638,7 @@ class MainActivity : Activity() {
                 cat.phrases[index] = tmp
                 saveAndRender()
             }
-        }, LinearLayout.LayoutParams(dp(40), dp(40)))
+        }, LinearLayout.LayoutParams(dp(42), dp(42)).apply { leftMargin = dp(6) })
         row.addView(smallKey("▼") {
             if (index < cat.phrases.size - 1) {
                 val tmp = cat.phrases[index + 1]
@@ -592,8 +646,57 @@ class MainActivity : Activity() {
                 cat.phrases[index] = tmp
                 saveAndRender()
             }
-        }, LinearLayout.LayoutParams(dp(40), dp(40)))
+        }, LinearLayout.LayoutParams(dp(42), dp(42)).apply { leftMargin = dp(6) })
         return row
+    }
+
+    // カテゴリの並べ替え（キーボードの定型文パネルもこの順に並ぶ）
+    private fun sortCategories() {
+        if (cats.size < 2) {
+            toast("カテゴリが2つ以上になったら並べ替えできるよ")
+            return
+        }
+        val list = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(8), dp(16), dp(8))
+        }
+        fun paint() {
+            list.removeAllViews()
+            cats.forEachIndexed { i, c ->
+                val row = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(0, dp(4), 0, dp(4))
+                }
+                row.addView(text(c.name, 15f, Ui.TEXT, bold = true), LinearLayout.LayoutParams(0, wrap, 1f))
+                row.addView(smallKey("▲") {
+                    if (i > 0) {
+                        val t = cats[i - 1]; cats[i - 1] = cats[i]; cats[i] = t
+                        if (current == i) current = i - 1 else if (current == i - 1) current = i
+                        paint()
+                    }
+                }, LinearLayout.LayoutParams(dp(42), dp(42)).apply { leftMargin = dp(6) })
+                row.addView(smallKey("▼") {
+                    if (i < cats.size - 1) {
+                        val t = cats[i + 1]; cats[i + 1] = cats[i]; cats[i] = t
+                        if (current == i) current = i + 1 else if (current == i + 1) current = i
+                        paint()
+                    }
+                }, LinearLayout.LayoutParams(dp(42), dp(42)).apply { leftMargin = dp(6) })
+                list.addView(row)
+            }
+        }
+        paint()
+        val sv = ScrollView(this).apply {
+            setBackgroundColor(Ui.BG)
+            addView(list)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("カテゴリの並べ替え")
+            .setView(sv)
+            .setPositiveButton("完了") { _, _ -> saveAndRender() }
+            .setOnCancelListener { saveAndRender() }
+            .show()
     }
 
     // ---------- 編集ダイアログ ----------
@@ -625,8 +728,29 @@ class MainActivity : Activity() {
         box.addView(titleEdit)
         box.addView(bodyEdit)
 
+        // 入れるカテゴリ（タップで選び直し）
+        var target = current
+        val catBtn = TextView(this).apply {
+            textSize = 14f
+            setPadding(0, dp(12), 0, dp(4))
+            setTextColor(Ui.ORANGE)
+        }
+        fun paintCat() { catBtn.text = "カテゴリ：${cats[target].name}　▼ 変更" }
+        paintCat()
+        catBtn.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("カテゴリを選ぶ")
+                .setSingleChoiceItems(cats.map { it.name }.toTypedArray(), target) { d, which ->
+                    target = which
+                    paintCat()
+                    d.dismiss()
+                }
+                .show()
+        }
+        box.addView(catBtn)
+
         val builder = AlertDialog.Builder(this)
-            .setTitle(if (p == null) "定型文を追加（${cat.name}）" else "定型文を編集")
+            .setTitle(if (p == null) "定型文を追加" else "定型文を編集")
             .setView(box)
             .setPositiveButton("保存") { _, _ ->
                 val body = bodyEdit.text.toString()
@@ -636,11 +760,17 @@ class MainActivity : Activity() {
                 }
                 val title = titleEdit.text.toString().trim()
                 if (p == null) {
-                    cat.phrases.add(Phrase(title, body))
+                    cats[target].phrases.add(Phrase(title, body))
                 } else {
                     p.title = title
                     p.body = body
+                    // カテゴリを変えたら、移動先の一番下へ
+                    if (target != current) {
+                        cat.phrases.removeAt(index)
+                        cats[target].phrases.add(p)
+                    }
                 }
+                current = target
                 saveAndRender()
             }
             .setNegativeButton("キャンセル", null)
@@ -761,9 +891,10 @@ class MainActivity : Activity() {
 
     private fun smallKey(label: String, onClick: () -> Unit) = TextView(this).apply {
         text = label
-        textSize = 14f
+        textSize = 15f
         gravity = Gravity.CENTER
-        setTextColor(Ui.SUB)
+        setTextColor(Ui.TEXT)
+        background = Ui.pressable(Ui.KEY, dp(8).toFloat())
         setOnClickListener { onClick() }
     }
 
