@@ -11,6 +11,11 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.text.InputType
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
+import android.text.style.StyleSpan
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
@@ -43,6 +48,14 @@ class KookyKeyboardService : InputMethodService() {
 
     private var tab = TAB_JA
     private var userTab = TAB_JA
+
+    // 入力切替キーで あ→A→1 を順に切り替える（定型文から戻るときはこのモードへ）
+    private var inputMode = TAB_JA
+    private var modeKey: TextView? = null
+
+    // サイズ設定（％）。設定画面で変わったら作り直す
+    private var heightPct = 100
+    private var oneHandPct = 78
 
     // 片手モード 0=通常 1=右寄せ 2=左寄せ
     private var oneHand = 0
@@ -116,6 +129,8 @@ class KookyKeyboardService : InputMethodService() {
         stopRepeat()
         categories = store.load()
         oneHand = prefs().getInt("one_hand", 0)
+        heightPct = prefs().getInt("height_pct", 100).coerceIn(70, 150)
+        oneHandPct = prefs().getInt("onehand_pct", 78).coerceIn(55, 95)
         enLabelKeys.clear()
         enterKeys.clear()
 
@@ -124,7 +139,7 @@ class KookyKeyboardService : InputMethodService() {
             orientation = LinearLayout.HORIZONTAL
             setBackgroundColor(Ui.BG)
         }
-        val stripWidth = (resources.displayMetrics.widthPixels * 0.22f).toInt()
+        val stripWidth = (resources.displayMetrics.widthPixels * (100 - oneHandPct) / 100f).toInt()
 
         val ls = stripKey()
         root.addView(ls, LinearLayout.LayoutParams(stripWidth, match))
@@ -140,12 +155,25 @@ class KookyKeyboardService : InputMethodService() {
         root.addView(rs, LinearLayout.LayoutParams(stripWidth, match))
         rightStrip = rs
 
-        // 上段：[◀][タブ or 変換候補][▶]
+        // 上段：[◀][⚙][定型文タブ or 変換候補][▶]
         val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
 
         val la = arrowKey("◀") { setOneHand(2) }
         top.addView(la, LinearLayout.LayoutParams(dp(30), match).apply { rightMargin = dp(4) })
         leftArrow = la
+
+        // ⚙ タップ：設定画面 / 長押し：キーボードの切り替え
+        top.addView(key("⚙", Ui.CARD).apply {
+            textSize = 15f
+            setTextColor(Ui.SUB)
+            background = Ui.pressable(Ui.CARD, dp(4).toFloat())
+            setOnClickListener { openSettings() }
+            setOnLongClickListener {
+                commitAll()
+                imm().showInputMethodPicker()
+                true
+            }
+        }, LinearLayout.LayoutParams(dp(34), match).apply { rightMargin = dp(5) })
 
         val ts = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
         val tabs = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -168,7 +196,7 @@ class KookyKeyboardService : InputMethodService() {
         top.addView(ra, LinearLayout.LayoutParams(dp(30), match).apply { leftMargin = dp(4) })
         rightArrow = ra
 
-        p.addView(top, LinearLayout.LayoutParams(match, dp(32)))
+        p.addView(top, LinearLayout.LayoutParams(match, sz(32)))
 
         // 本体：[サイド列(左寄せ時)][入力エリア＋下段キー][サイド列(通常・右寄せ時)]
         val body = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -200,8 +228,8 @@ class KookyKeyboardService : InputMethodService() {
         area.addView(ng, FrameLayout.LayoutParams(match, match))
         numGrid = ng
 
-        content.addView(area, LinearLayout.LayoutParams(match, dp(152)))
-        content.addView(buildBottomRow(), LinearLayout.LayoutParams(match, dp(46)).apply { topMargin = dp(4) })
+        content.addView(area, LinearLayout.LayoutParams(match, sz(152)))
+        content.addView(buildBottomRow(), LinearLayout.LayoutParams(match, sz(46)).apply { topMargin = dp(4) })
         body.addView(content, LinearLayout.LayoutParams(0, wrap, 1f))
 
         val rside = sideColumn()
@@ -217,15 +245,24 @@ class KookyKeyboardService : InputMethodService() {
         return root
     }
 
+    // 高さ設定を反映したサイズ
+    private fun sz(v: Int): Int = dp(v * heightPct / 100)
+
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         stopRepeat()
         clearComposingState()
         dict.prepare()
+        // サイズ設定が変わっていたらキーボードを作り直す
+        if (prefs().getInt("height_pct", 100).coerceIn(70, 150) != heightPct ||
+            prefs().getInt("onehand_pct", 78).coerceIn(55, 95) != oneHandPct
+        ) {
+            setInputView(onCreateInputView())
+        }
         // 設定画面で編集した内容を毎回読み直す
         categories = store.load()
         if (!restarting) tab = startTab(info)
-        if (tab >= categories.size + TAB_PHRASE) tab = TAB_JA
+        if (tab >= categories.size + TAB_PHRASE) tab = inputMode
         shift = 0
         applyOneHand()
         render()
@@ -273,7 +310,13 @@ class KookyKeyboardService : InputMethodService() {
 
     // 数字・電話番号欄は「1」、メール・URL・パスワード欄は「A」で開く
     private fun startTab(info: EditorInfo?): Int {
-        val type = info?.inputType ?: return userTab
+        val t = forcedTab(info) ?: return userTab
+        inputMode = t
+        return t
+    }
+
+    private fun forcedTab(info: EditorInfo?): Int? {
+        val type = info?.inputType ?: return null
         val cls = type and InputType.TYPE_MASK_CLASS
         val v = type and InputType.TYPE_MASK_VARIATION
         if (cls == InputType.TYPE_CLASS_NUMBER || cls == InputType.TYPE_CLASS_PHONE) return TAB_NUM
@@ -376,22 +419,19 @@ class KookyKeyboardService : InputMethodService() {
         val tabs = tabsRow ?: return
         val box = listBox ?: return
 
+        // 上のタブは定型文カテゴリだけ（あ/A/1 は下段の入力切替キー）
         tabs.removeAllViews()
-        val names = listOf("あ", "A", "1") + categories.map { it.name }
-        names.forEachIndexed { i, name ->
+        categories.forEachIndexed { ci, c ->
+            val i = ci + TAB_PHRASE
             val selected = i == tab
-            val isInput = i < TAB_PHRASE
             val chip = TextView(this).apply {
-                text = name
-                textSize = if (isInput) 15f else 13f
+                text = c.name
+                textSize = 13f
                 gravity = Gravity.CENTER
-                setPadding(dp(if (isInput) 13 else 12), 0, dp(if (isInput) 13 else 12), 0)
+                setPadding(dp(12), 0, dp(12), 0)
                 setTextColor(if (selected) Ui.BG else Ui.TEXT)
-                typeface = if (selected || isInput) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-                background = Ui.pressable(
-                    if (selected) Ui.ORANGE else if (isInput) Ui.KEY else Ui.CARD,
-                    dp(4).toFloat()
-                )
+                typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+                background = Ui.pressable(if (selected) Ui.ORANGE else Ui.CARD, dp(4).toFloat())
                 setOnClickListener {
                     it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                     commitAll()
@@ -404,6 +444,7 @@ class KookyKeyboardService : InputMethodService() {
             }
             tabs.addView(chip, LinearLayout.LayoutParams(wrap, match).apply { rightMargin = dp(5) })
         }
+        updateModeKey()
 
         jaGrid?.visibility = if (tab == TAB_JA) View.VISIBLE else View.GONE
         enGrid?.visibility = if (tab == TAB_EN) View.VISIBLE else View.GONE
@@ -806,16 +847,21 @@ class KookyKeyboardService : InputMethodService() {
     private fun buildBottomRow(): View {
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
 
-        // ⚙ タップ：定型文の編集画面 / 長押し：キーボードの切り替え
-        row.addView(key("⚙", Ui.KEY).apply {
-            textSize = 18f
-            setOnClickListener { openSettings() }
+        // 入力切替：あ → A → 1 → あ…（定型文を表示中なら直前の入力モードに戻る）
+        // 長押し：キーボードの切り替え
+        val mk = key("", Ui.KEY).apply {
+            setOnClickListener {
+                it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                switchMode()
+            }
             setOnLongClickListener {
                 commitAll()
                 imm().showInputMethodPicker()
                 true
             }
-        }, keyParams(1f))
+        }
+        row.addView(mk, keyParams(1.3f))
+        modeKey = mk
 
         // ← → カーソル移動（押しっぱなしで連続）
         row.addView(key("←", Ui.KEY).apply {
@@ -832,10 +878,46 @@ class KookyKeyboardService : InputMethodService() {
             textSize = 13f
             setOnClickListener { space(it) }
         }
-        row.addView(sp, keyParams(2.4f))
+        row.addView(sp, keyParams(2.2f))
         spaceKey = sp
 
+        updateModeKey()
         return row
+    }
+
+    private fun switchMode() {
+        commitAll()
+        resetToggle()
+        tab = if (tab >= TAB_PHRASE) inputMode else (tab + 1) % TAB_PHRASE
+        inputMode = tab
+        userTab = tab
+        shift = 0
+        updateCaseLabels()
+        render()
+    }
+
+    // 「あ A 1」を並べて、今のモードだけオレンジで表示
+    private fun updateModeKey() {
+        val mk = modeKey ?: return
+        val labels = listOf("あ", "A", "1")
+        val sb = SpannableStringBuilder()
+        labels.forEachIndexed { i, s ->
+            if (i > 0) sb.append(" ")
+            val start = sb.length
+            sb.append(s)
+            val on = i == inputMode
+            sb.setSpan(
+                ForegroundColorSpan(if (on) Ui.ORANGE else Ui.SUB),
+                start, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            sb.setSpan(
+                RelativeSizeSpan(if (on) 1.25f else 0.85f),
+                start, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            if (on) sb.setSpan(StyleSpan(Typeface.BOLD), start, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+        mk.textSize = 14f
+        mk.text = sb
     }
 
     private fun key(label: String, color: Int): TextView = TextView(this).apply {

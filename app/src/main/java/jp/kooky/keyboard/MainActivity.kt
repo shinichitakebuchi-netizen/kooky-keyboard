@@ -20,6 +20,7 @@ import android.widget.EditText
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 
@@ -55,7 +56,7 @@ class MainActivity : Activity() {
         setContentView(scroll)
 
         col.addView(text("KOOKY KEYBOARD", 22f, Ui.ORANGE, bold = true))
-        col.addView(text("定型文キーボード v0.8", 12f, Ui.SUB))
+        col.addView(text("定型文キーボード v0.9", 12f, Ui.SUB))
 
         // --- はじめに ---
         col.addView(section("はじめに"))
@@ -77,6 +78,12 @@ class MainActivity : Activity() {
             gravity = Gravity.TOP
         }
         col.addView(test, blockParams())
+
+        // --- キーボードのサイズ ---
+        col.addView(section("キーボードのサイズ"))
+        col.addView(text("上の試し打ち欄でキーボードを開いたまま調整できるよ", 11f, Ui.SUB))
+        col.addView(sizeSlider("高さ", "height_pct", 100, 70, 150), blockParams())
+        col.addView(sizeSlider("片手モードの幅", "onehand_pct", 78, 55, 95), blockParams())
 
         // --- 定型文 ---
         col.addView(section("定型文"))
@@ -456,6 +463,45 @@ class MainActivity : Activity() {
     }
 
     private fun blockParams() = LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(8) }
+
+    // サイズ調整スライダー（5%刻み、キーボード側は次に開いたときに反映）
+    private fun sizeSlider(label: String, key: String, def: Int, lo: Int, hi: Int): View {
+        val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = Ui.round(Ui.CARD, dp(10).toFloat())
+            setPadding(dp(12), dp(10), dp(12), dp(6))
+        }
+        val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        head.addView(text(label, 14f, Ui.TEXT), LinearLayout.LayoutParams(0, wrap, 1f))
+        val valueText = text("", 14f, Ui.ORANGE, bold = true)
+        head.addView(valueText)
+        box.addView(head)
+
+        val steps = (hi - lo) / 5
+        val start = prefs.getInt(key, def).coerceIn(lo, hi)
+        valueText.text = "$start%"
+        val bar = SeekBar(this).apply {
+            this.max = steps
+            progress = (start - lo) / 5
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {
+                    val v = lo + p * 5
+                    valueText.text = "$v%"
+                    prefs.edit().putInt(key, v).apply()
+                }
+                override fun onStartTrackingTouch(sb: SeekBar?) {}
+                override fun onStopTrackingTouch(sb: SeekBar?) {}
+            })
+        }
+        box.addView(bar, LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(4) })
+
+        box.addView(text("標準に戻す", 11f, Ui.SUB).apply {
+            setPadding(0, dp(4), 0, dp(4))
+            setOnClickListener { bar.progress = (def - lo) / 5 }
+        })
+        return box
+    }
 
     private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
 }
