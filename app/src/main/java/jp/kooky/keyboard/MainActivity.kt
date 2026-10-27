@@ -241,7 +241,12 @@ class MainActivity : Activity() {
         c.addView(section("背景画像"))
         val bgStatus = text("", 13f, Ui.TEXT)
         fun paintBg() {
-            bgStatus.text = if (BgImage.has(this)) "✅ 画像を設定中（背景の透過率で見え方を調整）" else "画像なし"
+            bgStatus.text = when {
+                BgImage.isAnimated(this) && Build.VERSION.SDK_INT >= 28 -> "✅ GIF（動く画像）を設定中（背景の透過率で見え方を調整）"
+                BgImage.isAnimated(this) -> "✅ 画像を設定中（この端末ではGIFは止まった1コマ目で表示）"
+                BgImage.has(this) -> "✅ 画像を設定中（背景の透過率で見え方を調整）"
+                else -> "画像なし（写真・GIFが使えるよ）"
+            }
         }
         paintBg()
         bgStatusRefresh = { paintBg() }
@@ -544,8 +549,18 @@ class MainActivity : Activity() {
         val uri = data?.data ?: return
         toast("画像を読み込み中…")
         Thread {
-            val ok = BgImage.save(this, uri)
+            var err: String? = null
+            val ok = try {
+                BgImage.save(this, uri)
+            } catch (e: BgImage.TooBig) {
+                err = e.message
+                false
+            }
             runOnUiThread {
+                if (err != null) {
+                    toast(err!!)
+                    return@runOnUiThread
+                }
                 if (ok) {
                     // 透過率が0だと画像が見えないので、最初は半分くらい見えるようにする
                     val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)

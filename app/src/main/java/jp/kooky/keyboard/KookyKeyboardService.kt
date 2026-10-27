@@ -92,6 +92,19 @@ class KookyKeyboardService : InputMethodService() {
 
     private var builtLook = ""
 
+    // 動く背景（GIF）。キーボードが見えている間だけ動かす（電池のため）
+    private var bgAnim: Drawable? = null
+
+    private fun startBgAnim() {
+        val a = bgAnim
+        if (Build.VERSION.SDK_INT >= 28 && a is android.graphics.drawable.AnimatedImageDrawable && !a.isRunning) a.start()
+    }
+
+    private fun stopBgAnim() {
+        val a = bgAnim
+        if (Build.VERSION.SDK_INT >= 28 && a is android.graphics.drawable.AnimatedImageDrawable && a.isRunning) a.stop()
+    }
+
     // ---------- 音声入力 ----------
     private var voicePanel: View? = null
     private var voiceStatus: TextView? = null
@@ -239,13 +252,19 @@ class KookyKeyboardService : InputMethodService() {
         // 外枠：[左の操作パネル][キーボード本体][右の操作パネル]（片手モードの空いた側に出る）
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            // 背景画像があれば、画像の上に背景色（透過率つき）を重ねる
-            val img = BgImage.load(this@KookyKeyboardService)
-            background = if (img != null) {
-                LayerDrawable(arrayOf(CropDrawable(img), ColorDrawable(bgColor())))
-            } else {
-                ColorDrawable(bgColor())
+            // 背景画像があれば、画像の上に背景色（透過率つき）を重ねる（GIFは動かす）
+            stopBgAnim()
+            val anim = loadAnimatedBg(this@KookyKeyboardService)
+            val img = if (anim == null) BgImage.load(this@KookyKeyboardService) else null
+            background = when {
+                anim != null -> {
+                    bgAnim = anim
+                    LayerDrawable(arrayOf(CropAnimDrawable(anim), ColorDrawable(bgColor())))
+                }
+                img != null -> LayerDrawable(arrayOf(CropDrawable(img), ColorDrawable(bgColor())))
+                else -> ColorDrawable(bgColor())
             }
+            startBgAnim()
         }
         val stripWidth = (resources.displayMetrics.widthPixels * (100 - oneHandPct) / 100f).toInt()
 
@@ -397,12 +416,20 @@ class KookyKeyboardService : InputMethodService() {
         super.onFinishInput()
     }
 
+    override fun onWindowShown() {
+        super.onWindowShown()
+        startBgAnim()
+    }
+
     override fun onWindowHidden() {
+        stopBgAnim()
         stopRepeat()
         super.onWindowHidden()
     }
 
     override fun onDestroy() {
+        stopBgAnim()
+        bgAnim = null
         prefs().unregisterOnSharedPreferenceChangeListener(lookListener)
         handler.removeCallbacks(rebuildLook)
         stopRepeat()
