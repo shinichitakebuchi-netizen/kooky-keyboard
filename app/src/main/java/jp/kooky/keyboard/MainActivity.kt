@@ -184,7 +184,8 @@ class MainActivity : Activity() {
 
     // ---------- 定型文 ----------
     private fun buildPhrase() {
-        col.addView(text("タブ長押しでカテゴリ名の変更・削除", 11f, Ui.SUB).apply { setPadding(0, dp(8), 0, 0) })
+        col.addView(text("タブ長押しでカテゴリ名の変更・削除／定型文は右の二本線を長押しで並べ替え", 11f, Ui.SUB)
+            .apply { setPadding(0, dp(8), 0, 0) })
         val tabScroll = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
         val tr = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         tabScroll.addView(tr)
@@ -601,15 +602,25 @@ class MainActivity : Activity() {
             listBox.addView(text("このカテゴリは空だよ。「＋ 定型文」から追加してね", 13f, Ui.SUB))
             return
         }
-        cat.phrases.forEachIndexed { i, p -> listBox.addView(phraseRow(cat, i, p), blockParams()) }
+        val ds = DragSort { from, to ->
+            val moved = cat.phrases.removeAt(from)
+            cat.phrases.add(to, moved)
+            saveAndRender()
+        }
+        cat.phrases.forEachIndexed { i, p ->
+            val (row, handle) = phraseRow(i, p)
+            listBox.addView(row, blockParams())
+            ds.add(row, handle)
+        }
     }
 
-    private fun phraseRow(cat: Category, index: Int, p: Phrase): View {
+    // 定型文の1行：タップで編集、右の二本線を長押しで並べ替え
+    private fun phraseRow(index: Int, p: Phrase): Pair<View, View> {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             background = Ui.pressable(Ui.CARD, dp(10).toFloat())
-            setPadding(dp(12), dp(10), dp(6), dp(10))
+            setPadding(dp(12), dp(10), dp(4), dp(10))
             setOnClickListener { editPhrase(index) }
         }
         val texts = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -629,25 +640,17 @@ class MainActivity : Activity() {
             ellipsize = TextUtils.TruncateAt.END
         })
         row.addView(texts, LinearLayout.LayoutParams(0, wrap, 1f))
+        val handle = dragHandle()
+        row.addView(handle, LinearLayout.LayoutParams(dp(44), dp(44)).apply { leftMargin = dp(4) })
+        return row to handle
+    }
 
-        // 並べ替え
-        row.addView(smallKey("▲") {
-            if (index > 0) {
-                val tmp = cat.phrases[index - 1]
-                cat.phrases[index - 1] = cat.phrases[index]
-                cat.phrases[index] = tmp
-                saveAndRender()
-            }
-        }, LinearLayout.LayoutParams(dp(42), dp(42)).apply { leftMargin = dp(6) })
-        row.addView(smallKey("▼") {
-            if (index < cat.phrases.size - 1) {
-                val tmp = cat.phrases[index + 1]
-                cat.phrases[index + 1] = cat.phrases[index]
-                cat.phrases[index] = tmp
-                saveAndRender()
-            }
-        }, LinearLayout.LayoutParams(dp(42), dp(42)).apply { leftMargin = dp(6) })
-        return row
+    // 並べ替えのつまみ（二本線）
+    private fun dragHandle(): View = android.widget.ImageView(this).apply {
+        setImageResource(R.drawable.ic_kb_drag)
+        setColorFilter(Ui.SUB)
+        scaleType = android.widget.ImageView.ScaleType.CENTER
+        contentDescription = "長押しで並べ替え"
     }
 
     // カテゴリの並べ替え（キーボードの定型文パネルもこの順に並ぶ）
@@ -660,39 +663,36 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(8), dp(16), dp(8))
         }
-        fun paint() {
+        lateinit var repaint: () -> Unit
+        repaint = {
             list.removeAllViews()
-            cats.forEachIndexed { i, c ->
+            val ds = DragSort { from, to ->
+                val moved = cats.removeAt(from)
+                cats.add(to, moved)
+                current = 0
+                repaint()
+            }
+            cats.forEach { c ->
                 val row = LinearLayout(this).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
-                    setPadding(0, dp(4), 0, dp(4))
+                    background = Ui.round(Ui.CARD, dp(10).toFloat())
+                    setPadding(dp(12), dp(4), dp(4), dp(4))
                 }
                 row.addView(text(c.name, 15f, Ui.TEXT, bold = true), LinearLayout.LayoutParams(0, wrap, 1f))
-                row.addView(smallKey("▲") {
-                    if (i > 0) {
-                        val t = cats[i - 1]; cats[i - 1] = cats[i]; cats[i] = t
-                        if (current == i) current = i - 1 else if (current == i - 1) current = i
-                        paint()
-                    }
-                }, LinearLayout.LayoutParams(dp(42), dp(42)).apply { leftMargin = dp(6) })
-                row.addView(smallKey("▼") {
-                    if (i < cats.size - 1) {
-                        val t = cats[i + 1]; cats[i + 1] = cats[i]; cats[i] = t
-                        if (current == i) current = i + 1 else if (current == i + 1) current = i
-                        paint()
-                    }
-                }, LinearLayout.LayoutParams(dp(42), dp(42)).apply { leftMargin = dp(6) })
-                list.addView(row)
+                val handle = dragHandle()
+                row.addView(handle, LinearLayout.LayoutParams(dp(44), dp(44)))
+                list.addView(row, LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(6) })
+                ds.add(row, handle)
             }
         }
-        paint()
+        repaint()
         val sv = ScrollView(this).apply {
             setBackgroundColor(Ui.BG)
             addView(list)
         }
         AlertDialog.Builder(this)
-            .setTitle("カテゴリの並べ替え")
+            .setTitle("カテゴリの並べ替え（二本線を長押しで移動）")
             .setView(sv)
             .setPositiveButton("完了") { _, _ -> saveAndRender() }
             .setOnCancelListener { saveAndRender() }

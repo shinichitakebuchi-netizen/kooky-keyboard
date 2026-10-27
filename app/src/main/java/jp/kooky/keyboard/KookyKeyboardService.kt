@@ -976,14 +976,20 @@ class KookyKeyboardService : InputMethodService() {
             grid.addView(row, LinearLayout.LayoutParams(match, 0, 1f))
         }
         val last = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        // a/A：小文字 → 次の1文字だけ大文字 → ずっと大文字 → 小文字
+        // a/A タップ：直前に打った文字の大文字・小文字を切り替え（a → A → a）
+        //     長押し：ずっと大文字（CAPS）のオン・オフ
         val ck = key("a/A", pal.key).apply {
-            textSize = 14f
+            textSize = 16f
             setOnClickListener {
                 it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                toggleLastCase()
+            }
+            setOnLongClickListener {
+                it.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                 resetToggle()
-                shift = (shift + 1) % 3
+                shift = if (shift == 2) 0 else 2
                 updateCaseLabels()
+                true
             }
         }
         last.addView(ck, gridKeyParams())
@@ -1002,7 +1008,23 @@ class KookyKeyboardService : InputMethodService() {
         ) { s, isTap -> inputDirect(s, isTap, chars, true) }
         enLabelKeys.add(k)
         k.tag = label
+        k.textSize = if (label.length <= 3) 19f else 17f
         return k
+    }
+
+    // 直前の1文字が英字なら、大文字・小文字を入れ替える
+    private fun toggleLastCase() {
+        val ic = currentInputConnection ?: return
+        val before = ic.getTextBeforeCursor(1, 0)?.toString() ?: return
+        if (before.isEmpty()) return
+        val ch = before[0]
+        if (!ch.isLetter()) return
+        val sw = if (ch.isUpperCase()) ch.lowercaseChar() else ch.uppercaseChar()
+        if (sw == ch) return
+        ic.deleteSurroundingText(1, 0)
+        ic.commitText(sw.toString(), 1)
+        // 同じキーの連打切り替え中なら、続きもこの大文字・小文字で
+        toggleUpper = sw.isUpperCase()
     }
 
     private fun updateCaseLabels() {
@@ -1011,11 +1033,7 @@ class KookyKeyboardService : InputMethodService() {
             k.text = if (shift > 0) base.uppercase() else base
         }
         caseKey?.apply {
-            text = when (shift) {
-                1 -> "A"
-                2 -> "CAPS"
-                else -> "a/A"
-            }
+            text = if (shift == 2) "CAPS" else "a/A"
             setTextColor(if (shift > 0) pal.onAccent else pal.text)
             background = press(if (shift > 0) pal.accent else pal.key, dp(8).toFloat())
         }
@@ -1052,10 +1070,6 @@ class KookyKeyboardService : InputMethodService() {
             ic.commitText(if (upper) s.uppercase() else s, 1)
             toggleIdx = 0
             toggleUpper = upper
-            if (caseAware && shift == 1) {
-                shift = 0
-                updateCaseLabels()
-            }
         }
         toggleKey = if (isTap) chars else null
         toggleTime = now

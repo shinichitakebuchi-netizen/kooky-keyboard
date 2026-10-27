@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kooky Keyboard 手作りアイコン：drag（並べ替えのつまみ・二本線） -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#00000000" android:strokeColor="#FFFFFFFF" android:strokeWidth="2.2"
+        android:strokeLineCap="round" android:pathData="M5,9.5h14M5,14.5h14" />
+</vector>
