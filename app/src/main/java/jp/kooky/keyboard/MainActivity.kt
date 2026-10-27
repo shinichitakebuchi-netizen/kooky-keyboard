@@ -1,11 +1,13 @@
 package jp.kooky.keyboard
 
+import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
@@ -56,7 +58,7 @@ class MainActivity : Activity() {
         setContentView(scroll)
 
         col.addView(text("KOOKY KEYBOARD", 22f, Ui.ORANGE, bold = true))
-        col.addView(text("定型文キーボード v0.10", 12f, Ui.SUB))
+        col.addView(text("定型文キーボード v0.11", 12f, Ui.SUB))
 
         // --- はじめに ---
         col.addView(section("はじめに"))
@@ -120,6 +122,63 @@ class MainActivity : Activity() {
         col.addView(text("今のバージョン：v${currentVersion()}", 11f, Ui.SUB))
         col.addView(button("最新版をダウンロード", Ui.ORANGE) { openUpdatePage() }, blockParams())
 
+        // --- 音声入力・AI添削 ---
+        col.addView(section("音声入力・AI添削"))
+        col.addView(text("キーボードの🎤で話す →「完了」でAIがビジネス敬語に整えて自動で入力するよ", 11f, Ui.SUB))
+        val ms = text("", 13f, Ui.TEXT)
+        micStatus = ms
+        col.addView(ms, blockParams())
+        col.addView(button("マイクの使用を許可", Ui.KEY) {
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 10)
+        }, blockParams())
+
+        val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
+        val keyEdit = EditText(this).apply {
+            hint = "Gemini APIキー"
+            setText(prefs.getString("gemini_key", ""))
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setSingleLine()
+            setTextColor(Ui.TEXT)
+            setHintTextColor(Ui.SUB)
+            background = Ui.round(Ui.CARD, dp(10).toFloat())
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+        }
+        col.addView(keyEdit, blockParams())
+        val modelEdit = EditText(this).apply {
+            hint = "モデル名（空欄なら ${Gemini.DEFAULT_MODEL}）"
+            setText(prefs.getString("gemini_model", Gemini.DEFAULT_MODEL))
+            setSingleLine()
+            setTextColor(Ui.TEXT)
+            setHintTextColor(Ui.SUB)
+            background = Ui.round(Ui.CARD, dp(10).toFloat())
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+        }
+        col.addView(modelEdit, blockParams())
+        val aiRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        aiRow.addView(button("保存", Ui.ORANGE) {
+            prefs.edit()
+                .putString("gemini_key", keyEdit.text.toString().trim())
+                .putString("gemini_model", modelEdit.text.toString().trim().ifEmpty { Gemini.DEFAULT_MODEL })
+                .apply()
+            toast("保存したよ")
+        }, LinearLayout.LayoutParams(0, dp(46), 1f).apply { rightMargin = dp(4) })
+        aiRow.addView(button("接続テスト", Ui.KEY) {
+            testGemini(keyEdit.text.toString().trim(), modelEdit.text.toString().trim())
+        }, LinearLayout.LayoutParams(0, dp(46), 1f).apply { leftMargin = dp(4) })
+        col.addView(aiRow, blockParams())
+        col.addView(button("APIキーを取得するページを開く", Ui.KEY) {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://aistudio.google.com/apikey")))
+            } catch (e: Exception) {
+                toast("ブラウザを開けなかったよ")
+            }
+        }, blockParams())
+        col.addView(text(
+            "⚠ Gemini APIの無料枠では、送った文章がGoogleのサービス改善に使われることがあるよ。" +
+                "お客様の名前・電話番号などの個人情報は話さないようにしてね。",
+            11f, Ui.ORANGE
+        ).apply { setPadding(0, dp(8), 0, 0) })
+
         // --- 日本語変換 ---
         col.addView(section("日本語変換"))
         col.addView(text("選んだ変換は覚えて、次から先に出すよ", 11f, Ui.SUB))
@@ -173,8 +232,45 @@ class MainActivity : Activity() {
         }
     }
 
+    private var micStatus: TextView? = null
+
+    private fun updateMicStatus() {
+        val ok = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        micStatus?.text = if (ok) "✅ マイクは許可済み" else "⚠ マイクがまだ許可されてないよ"
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        updateMicStatus()
+    }
+
+    // 試しの文章を送って、添削結果を表示
+    private fun testGemini(key: String, model: String) {
+        if (key.isEmpty()) {
+            toast("APIキーを入れてね")
+            return
+        }
+        val sample = "えーと明日の会議なんですけどあの10時からでお願いしますそれと資料は前日までに送ります"
+        toast("テスト中…")
+        Thread {
+            val msg = try {
+                "✅ 成功\n\n元の文：\n$sample\n\n添削後：\n" + Gemini.correct(key, model, sample)
+            } catch (e: Exception) {
+                "⚠ 失敗\n\n${e.message}"
+            }
+            runOnUiThread {
+                AlertDialog.Builder(this)
+                    .setTitle("接続テスト")
+                    .setMessage(msg)
+                    .setPositiveButton("閉じる", null)
+                    .show()
+            }
+        }.start()
+    }
+
     override fun onResume() {
         super.onResume()
+        updateMicStatus()
         updateStatus()
     }
 

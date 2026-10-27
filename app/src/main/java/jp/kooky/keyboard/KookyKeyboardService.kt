@@ -33,6 +33,12 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Bundle
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import kotlin.math.abs
 
 class KookyKeyboardService : InputMethodService() {
@@ -81,6 +87,22 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     private var builtLook = ""
+
+    // ---------- 音声入力 ----------
+    private var voicePanel: View? = null
+    private var voiceStatus: TextView? = null
+    private var voiceBody: TextView? = null
+    private var voiceMainBtn: TextView? = null
+    private var voiceSubBtn: TextView? = null
+    private var recognizer: SpeechRecognizer? = null
+    private val voiceBuf = StringBuilder()
+    private var voiceListening = false
+    private var voiceStopping = false
+    private var voiceFinished = false
+    private var lastRaw = ""
+    private var lastInserted = ""
+    private var voiceStage = 0 // 0=非表示 1=聞き取り中 2=添削中 3=入力済み 4=お知らせ
+    private var voiceToken = 0 // キャンセル後に古い結果が入らないようにする番号
 
     // 押したときの波紋（ライトは暗め、それ以外は明るめ）
     private fun press(color: Int, radius: Float) =
@@ -262,6 +284,9 @@ class KookyKeyboardService : InputMethodService() {
         area.addView(ng, FrameLayout.LayoutParams(match, match))
         numGrid = ng
 
+        // 音声入力中に上にかぶせるパネル
+        area.addView(buildVoicePanel(), FrameLayout.LayoutParams(match, match))
+
         content.addView(area, LinearLayout.LayoutParams(match, sz(152)))
         content.addView(buildBottomRow(), LinearLayout.LayoutParams(match, sz(46)).apply { topMargin = dp(4) })
         body.addView(content, LinearLayout.LayoutParams(0, wrap, 1f))
@@ -302,6 +327,7 @@ class KookyKeyboardService : InputMethodService() {
 
     override fun onFinishInputView(finishingInput: Boolean) {
         stopRepeat()
+        cancelVoice()
         commitAll()
         super.onFinishInputView(finishingInput)
     }
@@ -319,6 +345,7 @@ class KookyKeyboardService : InputMethodService() {
 
     override fun onDestroy() {
         stopRepeat()
+        cancelVoice()
         super.onDestroy()
     }
 
@@ -893,6 +920,15 @@ class KookyKeyboardService : InputMethodService() {
         row.addView(mk, keyParams(1.3f))
         modeKey = mk
 
+        // 🎤 音声入力 → AIでビジネス敬語に添削 → 自動で入力
+        row.addView(key("🎤", pal.key).apply {
+            textSize = 17f
+            setOnClickListener {
+                it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                startVoice()
+            }
+        }, keyParams(1f))
+
         // ← → カーソル移動（押しっぱなしで連続）
         row.addView(key("←", pal.key).apply {
             textSize = 18f
@@ -908,7 +944,7 @@ class KookyKeyboardService : InputMethodService() {
             textSize = 13f
             setOnClickListener { space(it) }
         }
-        row.addView(sp, keyParams(2.2f))
+        row.addView(sp, keyParams(2f))
         spaceKey = sp
 
         updateModeKey()
@@ -991,6 +1027,292 @@ class KookyKeyboardService : InputMethodService() {
         repeatKey?.isPressed = false
         repeatKey = null
         repeatAction = null
+    }
+
+    // ---------- 音声入力 → AI添削 → 自動入力 ----------
+
+    private fun buildVoicePanel(): View {
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(10), dp(8), dp(10), dp(8))
+            background = Ui.round(pal.card, dp(8).toFloat())
+            visibility = View.GONE
+            isClickable = true // 下のキーに触れないようにする
+        }
+        val st = TextView(this).apply {
+            textSize = 13f
+            setTextColor(pal.accent)
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        panel.addView(st)
+        val sv = ScrollView(this)
+        val body = TextView(this).apply {
+            textSize = 14f
+            setTextColor(pal.text)
+            setPadding(0, dp(4), 0, dp(4))
+        }
+        sv.addView(body)
+        panel.addView(sv, LinearLayout.LayoutParams(match, 0, 1f))
+
+        val btns = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val sub = key("キャンセル", pal.key).apply {
+            textSize = 13f
+            setOnClickListener { onVoiceSub() }
+        }
+        val main = key("完了", pal.accent).apply {
+            textSize = 14f
+            setOnClickListener { onVoiceMain() }
+        }
+        btns.addView(sub, LinearLayout.LayoutParams(0, match, 1f).apply { rightMargin = dp(4) })
+        btns.addView(main, LinearLayout.LayoutParams(0, match, 1.6f).apply { leftMargin = dp(4) })
+        panel.addView(btns, LinearLayout.LayoutParams(match, dp(36)))
+
+        voicePanel = panel
+        voiceStatus = st
+        voiceBody = body
+        voiceMainBtn = main
+        voiceSubBtn = sub
+        return panel
+    }
+
+    private fun setStage(stage: Int, status: String, body: String?) {
+        voiceStage = stage
+        voicePanel?.visibility = if (stage == 0) View.GONE else View.VISIBLE
+        voiceStatus?.text = status
+        if (body != null) voiceBody?.text = body
+        val main = voiceMainBtn ?: return
+        val sub = voiceSubBtn ?: return
+        when (stage) {
+            1 -> {
+                main.text = "完了（添削して入力）"; main.visibility = View.VISIBLE
+                sub.text = "キャンセル"; sub.visibility = View.VISIBLE
+            }
+            2 -> {
+                main.text = "添削中…"; main.visibility = View.VISIBLE
+                sub.text = "キャンセル"; sub.visibility = View.VISIBLE
+            }
+            3 -> {
+                main.text = "閉じる"; main.visibility = View.VISIBLE
+                sub.text = "元の文に戻す"; sub.visibility = View.VISIBLE
+            }
+            else -> {
+                main.text = "閉じる"; main.visibility = View.VISIBLE
+                sub.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun onVoiceMain() {
+        when (voiceStage) {
+            1 -> stopVoice()
+            2 -> {}
+            else -> setStage(0, "", "")
+        }
+    }
+
+    private fun onVoiceSub() {
+        when (voiceStage) {
+            1, 2 -> cancelVoice()
+            3 -> revertVoice()
+            else -> setStage(0, "", "")
+        }
+    }
+
+    private fun startVoice() {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            toast("マイクが許可されてないよ。⚙の設定画面で許可してね")
+            return
+        }
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            toast("この端末では音声認識が使えないみたい")
+            return
+        }
+        commitAll()
+        resetToggle()
+        cancelVoice()
+        voiceBuf.clear()
+        voiceStopping = false
+        voiceFinished = false
+        setStage(1, "🎤 準備中…", "")
+        val r = SpeechRecognizer.createSpeechRecognizer(this)
+        r.setRecognitionListener(voiceListener)
+        recognizer = r
+        listen()
+    }
+
+    private fun recogIntent() = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ja-JP")
+        putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+        putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+        putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, packageName)
+    }
+
+    private fun listen() {
+        val r = recognizer ?: return
+        voiceListening = true
+        try {
+            r.startListening(recogIntent())
+        } catch (e: Exception) {
+            voiceListening = false
+            voiceFail("音声認識を開始できなかったよ")
+        }
+    }
+
+    private fun best(b: Bundle?): String =
+        b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull() ?: ""
+
+    // 区切りで認識が止まっても「完了」を押すまで聞き続ける
+    private val voiceListener = object : RecognitionListener {
+        override fun onReadyForSpeech(params: Bundle?) {
+            if (voiceStage == 1 && !voiceStopping) voiceStatus?.text = "🎤 聞いています…（話し終わったら「完了」）"
+        }
+
+        override fun onPartialResults(partialResults: Bundle?) {
+            if (voiceStage != 1) return
+            voiceBody?.text = voiceBuf.toString() + best(partialResults)
+        }
+
+        override fun onResults(results: Bundle?) {
+            voiceListening = false
+            voiceBuf.append(best(results))
+            if (voiceStage == 1) voiceBody?.text = voiceBuf.toString()
+            if (voiceStopping) {
+                finishVoice()
+            } else {
+                handler.post { if (voiceStage == 1 && !voiceStopping) listen() }
+            }
+        }
+
+        override fun onError(error: Int) {
+            voiceListening = false
+            if (voiceStage != 1) return
+            if (voiceStopping) {
+                finishVoice()
+                return
+            }
+            when (error) {
+                SpeechRecognizer.ERROR_NO_MATCH,
+                SpeechRecognizer.ERROR_SPEECH_TIMEOUT,
+                SpeechRecognizer.ERROR_RECOGNIZER_BUSY ->
+                    handler.postDelayed({ if (voiceStage == 1 && !voiceStopping) listen() }, 250)
+                SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
+                    voiceFail("マイクの許可がないよ。⚙の設定画面で許可してね")
+                else ->
+                    if (voiceBuf.isNotBlank()) finishVoice() else voiceFail("音声認識エラー（$error）")
+            }
+        }
+
+        override fun onBeginningOfSpeech() {}
+        override fun onRmsChanged(rmsdB: Float) {}
+        override fun onBufferReceived(buffer: ByteArray?) {}
+        override fun onEndOfSpeech() {}
+        override fun onEvent(eventType: Int, params: Bundle?) {}
+    }
+
+    // 「完了」：聞き取りを止めて添削へ
+    private fun stopVoice() {
+        voiceStopping = true
+        voiceStatus?.text = "🎤 聞き取りを終了中…"
+        if (voiceListening) {
+            try {
+                recognizer?.stopListening()
+            } catch (e: Exception) {
+            }
+            // 結果が返ってこないときの保険（キャンセル・やり直し後は何もしない）
+            val t = voiceToken
+            handler.postDelayed({ if (t == voiceToken) finishVoice() }, 2500)
+        } else {
+            finishVoice()
+        }
+    }
+
+    private fun finishVoice() {
+        if (voiceFinished || voiceStage != 1) return
+        voiceFinished = true
+        destroyRecognizer()
+        val raw = voiceBuf.toString().trim()
+        if (raw.isEmpty()) {
+            setStage(4, "聞き取れなかったよ", "")
+            return
+        }
+        val apiKey = prefs().getString("gemini_key", "") ?: ""
+        if (apiKey.isBlank()) {
+            insertVoice(raw, raw)
+            setStage(4, "APIキーが未設定なので、そのまま入力したよ（⚙で設定）", raw)
+            return
+        }
+        val model = prefs().getString("gemini_model", Gemini.DEFAULT_MODEL) ?: Gemini.DEFAULT_MODEL
+        val token = ++voiceToken
+        setStage(2, "✨ AIで添削中…", raw)
+        Thread {
+            val result = try {
+                Result.success(Gemini.correct(apiKey, model, raw))
+            } catch (e: Exception) {
+                Result.failure<String>(e)
+            }
+            handler.post {
+                if (token != voiceToken || voiceStage != 2) return@post
+                result.fold(
+                    onSuccess = { fixed ->
+                        insertVoice(fixed, raw)
+                        setStage(3, "✅ 添削して入力したよ", fixed)
+                    },
+                    onFailure = { e ->
+                        insertVoice(raw, raw)
+                        setStage(4, "⚠ ${e.message ?: "AIの添削に失敗"}\n元の文をそのまま入力したよ", raw)
+                    }
+                )
+            }
+        }.start()
+    }
+
+    private fun insertVoice(text: String, raw: String) {
+        currentInputConnection?.commitText(text, 1)
+        lastInserted = text
+        lastRaw = raw
+    }
+
+    // 「元の文に戻す」：直前に入れた添削後の文を、添削前の文に置き換える
+    private fun revertVoice() {
+        val ic = currentInputConnection ?: return
+        val before = ic.getTextBeforeCursor(lastInserted.length, 0)?.toString()
+        if (lastInserted.isNotEmpty() && before == lastInserted) {
+            ic.deleteSurroundingText(lastInserted.length, 0)
+            ic.commitText(lastRaw, 1)
+            lastInserted = lastRaw
+            setStage(4, "元の文に戻したよ", lastRaw)
+        } else {
+            toast("戻せなかったよ（カーソルが動いたかも）")
+        }
+    }
+
+    private fun voiceFail(msg: String) {
+        destroyRecognizer()
+        voiceFinished = true
+        setStage(4, "⚠ $msg", null)
+    }
+
+    private fun cancelVoice() {
+        voiceToken++
+        destroyRecognizer()
+        voiceListening = false
+        voiceStopping = false
+        if (voiceStage != 0) setStage(0, "", "")
+    }
+
+    private fun destroyRecognizer() {
+        val r = recognizer ?: return
+        recognizer = null
+        try {
+            r.cancel()
+            r.destroy()
+        } catch (e: Exception) {
+        }
+    }
+
+    private fun toast(s: String) {
+        Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
     }
 
     // ---------- 動作 ----------
