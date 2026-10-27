@@ -85,7 +85,8 @@ class KookyKeyboardService : InputMethodService() {
             pr.getInt("onehand_pct", 78).coerceIn(55, 95),
             pr.getString("theme", "navy"),
             pr.getInt("bg_trans", 0).coerceIn(0, 90),
-            pr.getInt("key_trans", 0).coerceIn(0, 90)
+            pr.getInt("key_trans", 0).coerceIn(0, 90),
+            pr.getLong("bg_image", 0L)
         ).joinToString("|")
     }
 
@@ -203,7 +204,7 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     // 見た目の設定（高さ・色・透過など）が変わったら、表示中のキーボードをすぐ作り直す
-    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans")
+    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans", "bg_image")
     private val rebuildLook = Runnable {
         if (isInputViewShown && lookKey() != builtLook) {
             stopRepeat()
@@ -238,7 +239,13 @@ class KookyKeyboardService : InputMethodService() {
         // 外枠：[左の操作パネル][キーボード本体][右の操作パネル]（片手モードの空いた側に出る）
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setBackgroundColor(bgColor())
+            // 背景画像があれば、画像の上に背景色（透過率つき）を重ねる
+            val img = BgImage.load(this@KookyKeyboardService)
+            background = if (img != null) {
+                LayerDrawable(arrayOf(CropDrawable(img), ColorDrawable(bgColor())))
+            } else {
+                ColorDrawable(bgColor())
+            }
         }
         val stripWidth = (resources.displayMetrics.widthPixels * (100 - oneHandPct) / 100f).toInt()
 

@@ -10,7 +10,9 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Typeface
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import android.provider.Settings
 import android.text.InputType
 import android.text.TextUtils
@@ -235,6 +237,24 @@ class MainActivity : Activity() {
         c.addView(text("試し打ち欄をタップしてキーボードを出したまま調整すると、その場で反映されるよ", 11f, Ui.SUB)
             .apply { setPadding(0, dp(8), 0, 0) })
         c.addView(testField(), blockParams())
+
+        c.addView(section("背景画像"))
+        val bgStatus = text("", 13f, Ui.TEXT)
+        fun paintBg() {
+            bgStatus.text = if (BgImage.has(this)) "✅ 画像を設定中（背景の透過率で見え方を調整）" else "画像なし"
+        }
+        paintBg()
+        bgStatusRefresh = { paintBg() }
+        c.addView(bgStatus)
+        val bgRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        bgRow.addView(button("画像を選ぶ", Ui.ORANGE) { pickBgImage() },
+            LinearLayout.LayoutParams(0, dp(46), 1f).apply { rightMargin = dp(4) })
+        bgRow.addView(button("画像を外す", Ui.KEY) {
+            BgImage.clear(this)
+            paintBg()
+            toast("背景画像を外したよ")
+        }, LinearLayout.LayoutParams(0, dp(46), 1f).apply { leftMargin = dp(4) })
+        c.addView(bgRow, blockParams())
 
         c.addView(section("透過"))
         c.addView(sizeSlider("背景の透過率", "bg_trans", 0, 0, 90), blockParams())
@@ -490,6 +510,53 @@ class MainActivity : Activity() {
     private fun updateMicStatus() {
         val ok = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         micStatus?.text = if (ok) "✅ マイクは許可済み" else "⚠ マイクがまだ許可されてないよ"
+    }
+
+    // ---------- 背景画像 ----------
+
+    private var bgStatusRefresh: (() -> Unit)? = null
+
+    // ギャラリーから選ぶ（Android 13以降は写真の選択画面。許可は不要）
+    private fun pickBgImage() {
+        val intent = if (Build.VERSION.SDK_INT >= 33) {
+            Intent(MediaStore.ACTION_PICK_IMAGES)
+        } else {
+            Intent(Intent.ACTION_GET_CONTENT).apply {
+                type = "image/*"
+                addCategory(Intent.CATEGORY_OPENABLE)
+            }
+        }
+        try {
+            startActivityForResult(intent, 20)
+        } catch (e: Exception) {
+            try {
+                startActivityForResult(Intent(Intent.ACTION_GET_CONTENT).apply { type = "image/*" }, 20)
+            } catch (e2: Exception) {
+                toast("画像を選ぶ画面を開けなかったよ")
+            }
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != 20 || resultCode != RESULT_OK) return
+        val uri = data?.data ?: return
+        toast("画像を読み込み中…")
+        Thread {
+            val ok = BgImage.save(this, uri)
+            runOnUiThread {
+                if (ok) {
+                    // 透過率が0だと画像が見えないので、最初は半分くらい見えるようにする
+                    val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
+                    if (prefs.getInt("bg_trans", 0) < 30) prefs.edit().putInt("bg_trans", 50).apply()
+                    toast("背景画像を設定したよ")
+                    if (page == "look") showPage("look") else bgStatusRefresh?.invoke()
+                } else {
+                    toast("画像を読み込めなかったよ")
+                }
+            }
+        }.start()
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
