@@ -58,7 +58,7 @@ class MainActivity : Activity() {
         setContentView(scroll)
 
         col.addView(text("KOOKY KEYBOARD", 22f, Ui.ORANGE, bold = true))
-        col.addView(text("定型文キーボード v0.13", 12f, Ui.SUB))
+        col.addView(text("定型文キーボード v0.14", 12f, Ui.SUB))
 
         // --- はじめに ---
         col.addView(section("はじめに"))

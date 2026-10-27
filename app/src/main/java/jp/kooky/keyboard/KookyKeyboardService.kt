@@ -139,10 +139,7 @@ class KookyKeyboardService : InputMethodService() {
     // ---------- ビュー ----------
     private var leftStrip: View? = null
     private var rightStrip: View? = null
-    private var leftArrow: View? = null
-    private var rightArrow: View? = null
-    private var leftSide: View? = null
-    private var rightSide: View? = null
+    private val topIcons = ArrayList<View>()
     private var tabScroll: View? = null
     private var tabsRow: LinearLayout? = null
     private var candScroll: HorizontalScrollView? = null
@@ -154,6 +151,10 @@ class KookyKeyboardService : InputMethodService() {
     private var numGrid: View? = null
     private var spaceKey: TextView? = null
     private val enterKeys = ArrayList<TextView>()
+
+    // 「元に戻す」用：直前にこのキーボードで確定した文字（読みがあれば変換前に戻せる）
+    private var lastCommit = ""
+    private var lastReading: String? = null
 
     // ---------- 長押しリピート（⌫・カーソル移動） ----------
     // 押しているキーが「押下中」かつ「画面に出ている」間だけ繰り返す
@@ -199,47 +200,44 @@ class KookyKeyboardService : InputMethodService() {
         window?.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         enLabelKeys.clear()
         enterKeys.clear()
+        topIcons.clear()
 
-        // 外枠：[左の◀▶帯][キーボード本体][右の◀▶帯]
+        // 外枠：[左の操作パネル][キーボード本体][右の操作パネル]（片手モードの空いた側に出る）
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setBackgroundColor(bgColor())
         }
         val stripWidth = (resources.displayMetrics.widthPixels * (100 - oneHandPct) / 100f).toInt()
 
-        val ls = stripKey()
+        val ls = stripPanel(true)
         root.addView(ls, LinearLayout.LayoutParams(stripWidth, match))
         leftStrip = ls
 
         val p = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(4), dp(4), dp(4), dp(4))
+            setPadding(dp(3), dp(3), dp(3), dp(3))
         }
         root.addView(p, LinearLayout.LayoutParams(0, wrap, 1f))
 
-        val rs = stripKey()
+        val rs = stripPanel(false)
         root.addView(rs, LinearLayout.LayoutParams(stripWidth, match))
         rightStrip = rs
 
-        // 上段：[◀][⚙][定型文タブ or 変換候補][▶]
-        val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-
-        val la = arrowKey("◀") { setOneHand(2) }
-        top.addView(la, LinearLayout.LayoutParams(dp(30), match).apply { rightMargin = dp(4) })
-        leftArrow = la
+        // 上段（ツールバー）：[⚙][定型文タブ or 変換候補][片手][🎤]
+        val top = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
 
         // ⚙ タップ：設定画面 / 長押し：キーボードの切り替え
-        top.addView(key("⚙", pal.card).apply {
-            textSize = 15f
-            setTextColor(pal.sub)
-            background = press(pal.card, dp(4).toFloat())
-            setOnClickListener { openSettings() }
-            setOnLongClickListener {
-                commitAll()
-                imm().showInputMethodPicker()
-                true
-            }
-        }, LinearLayout.LayoutParams(dp(34), match).apply { rightMargin = dp(5) })
+        val gear = toolKey("⚙", 18f) { openSettings() }
+        gear.setOnLongClickListener {
+            commitAll()
+            imm().showInputMethodPicker()
+            true
+        }
+        top.addView(gear, LinearLayout.LayoutParams(dp(40), match).apply { rightMargin = dp(4) })
+        topIcons.add(gear)
 
         val ts = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
         val tabs = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -258,25 +256,28 @@ class KookyKeyboardService : InputMethodService() {
         candScroll = cs
         candRow = cr
 
-        val ra = arrowKey("▶") { setOneHand(1) }
-        top.addView(ra, LinearLayout.LayoutParams(dp(30), match).apply { leftMargin = dp(4) })
-        rightArrow = ra
+        // 片手モードの切り替え（通常 ⇔ 右寄せ）
+        val hand = toolKey("片手", 12f) { setOneHand(if (oneHand == 0) 1 else 0) }
+        top.addView(hand, LinearLayout.LayoutParams(dp(44), match).apply { leftMargin = dp(4) })
+        topIcons.add(hand)
 
-        p.addView(top, LinearLayout.LayoutParams(match, sz(32)))
+        // 🎤 音声入力 → AIでビジネス敬語に添削 → 自動で入力
+        val mic = toolKey("🎤", 18f) { startVoice() }
+        top.addView(mic, LinearLayout.LayoutParams(dp(40), match).apply { leftMargin = dp(4) })
+        topIcons.add(mic)
 
-        // 本体：[サイド列(左寄せ時)][入力エリア＋下段キー][サイド列(通常・右寄せ時)]
+        p.addView(top, LinearLayout.LayoutParams(match, sz(38)))
+
+        // 本体（12キー配置）：[左列 ↶ ◀ @ あA1][中央：あ/A/1/定型文][右列 ⌫ ▶ ␣ ↵]
         val body = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        body.addView(leftColumn(), LinearLayout.LayoutParams(0, match, 1f))
 
-        val lside = sideColumn()
-        body.addView(lside, LinearLayout.LayoutParams(dp(54), match).apply { rightMargin = dp(4) })
-        leftSide = lside
-
-        val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-
-        // 入力エリア：定型文 / 日本語 / 英語 / 数字 を切り替え
         val area = FrameLayout(this)
         val scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false }
-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(2), 0, dp(2))
+        }
         scroll.addView(box)
         area.addView(scroll, FrameLayout.LayoutParams(match, match))
         listBox = box
@@ -297,15 +298,10 @@ class KookyKeyboardService : InputMethodService() {
         // 音声入力中に上にかぶせるパネル
         area.addView(buildVoicePanel(), FrameLayout.LayoutParams(match, match))
 
-        content.addView(area, LinearLayout.LayoutParams(match, sz(152)))
-        content.addView(buildBottomRow(), LinearLayout.LayoutParams(match, sz(46)).apply { topMargin = dp(4) })
-        body.addView(content, LinearLayout.LayoutParams(0, wrap, 1f))
+        body.addView(area, LinearLayout.LayoutParams(0, match, 3f))
+        body.addView(rightColumn(), LinearLayout.LayoutParams(0, match, 1f))
 
-        val rside = sideColumn()
-        body.addView(rside, LinearLayout.LayoutParams(dp(54), match).apply { leftMargin = dp(4) })
-        rightSide = rside
-
-        p.addView(body, LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(4) })
+        p.addView(body, LinearLayout.LayoutParams(match, sz(208)).apply { topMargin = dp(2) })
 
         applyOneHand()
         render()
@@ -407,77 +403,170 @@ class KookyKeyboardService : InputMethodService() {
         applyOneHand()
     }
 
-    // 0=通常（◀/▶を両端、サイド列は右） 1=右寄せ（左に◀▶帯） 2=左寄せ（右に◀▶帯、サイド列は左）
+    // 0=通常 1=右寄せ（左に操作パネル） 2=左寄せ（右に操作パネル）
     private fun applyOneHand() {
         leftStrip?.visibility = if (oneHand == 1) View.VISIBLE else View.GONE
         rightStrip?.visibility = if (oneHand == 2) View.VISIBLE else View.GONE
-        leftArrow?.visibility = if (oneHand == 0) View.VISIBLE else View.GONE
-        rightArrow?.visibility = if (oneHand == 0) View.VISIBLE else View.GONE
-        leftSide?.visibility = if (oneHand == 2) View.VISIBLE else View.GONE
-        rightSide?.visibility = if (oneHand == 2) View.GONE else View.VISIBLE
     }
 
-    private fun arrowKey(label: String, onClick: () -> Unit): TextView = TextView(this).apply {
+    // 片手モードの空いた側：⤢ 全幅に戻す ／ ‹ › 反対側へ寄せる
+    private fun stripPanel(isLeft: Boolean): View {
+        val col = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            visibility = View.GONE
+        }
+        col.addView(roundBtn("⤢") { setOneHand(0) },
+            LinearLayout.LayoutParams(dp(48), dp(48)).apply { bottomMargin = dp(20) })
+        col.addView(roundBtn(if (isLeft) "‹" else "›") { setOneHand(if (isLeft) 2 else 1) },
+            LinearLayout.LayoutParams(dp(48), dp(48)))
+        return col
+    }
+
+    private fun roundBtn(label: String, onClick: () -> Unit): TextView = TextView(this).apply {
         text = label
-        textSize = 12f
+        textSize = 20f
         gravity = Gravity.CENTER
-        setTextColor(pal.sub)
-        background = press(pal.card, dp(4).toFloat())
+        setTextColor(pal.text)
+        background = press(pal.card, dp(24).toFloat())
         setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
             onClick()
         }
     }
 
-    private fun stripKey(): TextView = TextView(this).apply {
-        text = "◀▶"
-        textSize = 16f
+    // ツールバーのアイコン
+    private fun toolKey(label: String, size: Float, onClick: () -> Unit): TextView = TextView(this).apply {
+        text = label
+        textSize = size
         gravity = Gravity.CENTER
         setTextColor(pal.sub)
-        background = press(Color.TRANSPARENT, 0f)
-        visibility = View.GONE
+        background = press(pal.card, dp(8).toFloat())
         setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-            setOneHand(0)
+            onClick()
         }
     }
 
-    // サイド列：上から ⌫、@（小さめ）、↵（大きめ）
-    private fun sideColumn(): View {
+    // 左列：↶ 元に戻す ／ ◀ ／ @ ／ あA1（入力切替）
+    private fun leftColumn(): View {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
 
-        // ⌫ 押しっぱなしで連続削除
-        col.addView(key("⌫", pal.key).apply {
-            textSize = 18f
-            repeatable(this) { backspace() }
-        }, sideParams(1f))
+        col.addView(key("↶", pal.key).apply {
+            textSize = 20f
+            setOnClickListener {
+                it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                undo()
+            }
+        }, colParams())
+
+        col.addView(key("◀", pal.key).apply {
+            textSize = 15f
+            repeatable(this) { cursor(KeyEvent.KEYCODE_DPAD_LEFT) }
+        }, colParams())
 
         col.addView(key("@", pal.key).apply {
-            textSize = 14f
+            textSize = 19f
             setOnClickListener {
                 commitAll()
                 resetToggle()
                 type(it, "@")
             }
-        }, sideParams(0.6f))
+        }, colParams())
 
-        // ↵ 改行 / 送信（変換中は「確定」）
+        // 入力切替：あ → A → 1 → あ…（定型文を表示中なら直前の入力モードに戻る）
+        // 長押し：キーボードの切り替え
+        val mk = key("", pal.key).apply {
+            setOnClickListener {
+                it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                switchMode()
+            }
+            setOnLongClickListener {
+                commitAll()
+                imm().showInputMethodPicker()
+                true
+            }
+        }
+        col.addView(mk, colParams())
+        modeKey = mk
+        updateModeKey()
+
+        return col
+    }
+
+    // 右列：⌫ ／ ▶ ／ ␣（変換中は「変換」）／ ↵（変換中は「確定」）
+    private fun rightColumn(): View {
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+
+        col.addView(key("⌫", pal.key).apply {
+            textSize = 19f
+            repeatable(this) { backspace() }
+        }, colParams())
+
+        col.addView(key("▶", pal.key).apply {
+            textSize = 15f
+            repeatable(this) { cursor(KeyEvent.KEYCODE_DPAD_RIGHT) }
+        }, colParams())
+
+        val sp = key("␣", pal.key).apply {
+            textSize = 18f
+            setOnClickListener { space(it) }
+        }
+        col.addView(sp, colParams())
+        spaceKey = sp
+
         val ek = key("↵", pal.accent).apply {
             textSize = 22f
+            background = press(pal.accent, dp(22).toFloat())
             setOnClickListener {
                 it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                 enterPressed()
             }
         }
-        col.addView(ek, sideParams(1.6f))
+        col.addView(ek, colParams())
         enterKeys.add(ek)
 
         return col
     }
 
-    private fun sideParams(weight: Float) = LinearLayout.LayoutParams(match, 0, weight).apply {
-        topMargin = dp(2)
-        bottomMargin = dp(2)
+    private fun colParams() = LinearLayout.LayoutParams(match, 0, 1f).apply {
+        setMargins(dp(2), dp(2), dp(2), dp(2))
+    }
+
+    // ↶ 元に戻す：入力中なら取り消し、確定直後なら確定を取り消し（変換なら読みに戻す）、
+    // それ以外はアプリ側の「元に戻す」（Ctrl+Z）を送る
+    private fun undo() {
+        stopRepeat()
+        if (composing.isNotEmpty()) {
+            if (sel >= 0) {
+                sel = -1
+                showComposing()
+                refreshCandBar()
+            } else {
+                composing.clear()
+                resetToggle()
+                updateComposing()
+            }
+            return
+        }
+        resetToggle()
+        val ic = currentInputConnection ?: return
+        val last = lastCommit
+        val reading = lastReading
+        lastCommit = ""
+        lastReading = null
+        if (last.isNotEmpty() && ic.getTextBeforeCursor(last.length, 0)?.toString() == last) {
+            ic.deleteSurroundingText(last.length, 0)
+            if (reading != null && tab == TAB_JA) {
+                composing.append(reading)
+                updateComposing()
+            }
+            return
+        }
+        val now = SystemClock.uptimeMillis()
+        val meta = KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON
+        ic.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_Z, 0, meta))
+        ic.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_Z, 0, meta))
     }
 
     // ---------- タブと入力エリア ----------
@@ -576,6 +665,8 @@ class KookyKeyboardService : InputMethodService() {
             commitAll()
             resetToggle()
             currentInputConnection?.commitText(p.body, 1)
+            lastCommit = p.body
+            lastReading = null
         }
         // 長押し：クリップボードにコピー
         cell.setOnLongClickListener {
@@ -740,6 +831,8 @@ class KookyKeyboardService : InputMethodService() {
         val ic = currentInputConnection ?: return
         val reading = composing.substring(0, c.len)
         ic.commitText(c.word, 1)
+        lastCommit = c.word
+        lastReading = reading
         dict.learn(reading, c.word)
         composing.delete(0, c.len)
         resetToggle()
@@ -751,7 +844,10 @@ class KookyKeyboardService : InputMethodService() {
         if (composing.isEmpty()) return
         if (sel >= 0) choose(sel)
         if (composing.isEmpty()) return
-        currentInputConnection?.commitText(composing.toString(), 1)
+        val raw = composing.toString()
+        currentInputConnection?.commitText(raw, 1)
+        lastCommit = raw
+        lastReading = raw
         composing.clear()
         resetToggle()
         updateComposing()
@@ -770,8 +866,12 @@ class KookyKeyboardService : InputMethodService() {
         val active = composing.isNotEmpty()
         cs.visibility = if (active) View.VISIBLE else View.GONE
         tabScroll?.visibility = if (active) View.GONE else View.VISIBLE
+        for (v in topIcons) v.visibility = if (active) View.GONE else View.VISIBLE
 
-        spaceKey?.text = if (active) "変換" else "スペース"
+        spaceKey?.apply {
+            text = if (active) "変換" else "␣"
+            textSize = if (active) 14f else 18f
+        }
         for (ek in enterKeys) {
             ek.text = if (active) "確定" else "↵"
             ek.textSize = if (active) 15f else 22f
@@ -909,58 +1009,6 @@ class KookyKeyboardService : InputMethodService() {
         toggleTime = now
     }
 
-    // ---------- 下段のキー ----------
-
-    private fun buildBottomRow(): View {
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-
-        // 入力切替：あ → A → 1 → あ…（定型文を表示中なら直前の入力モードに戻る）
-        // 長押し：キーボードの切り替え
-        val mk = key("", pal.key).apply {
-            setOnClickListener {
-                it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                switchMode()
-            }
-            setOnLongClickListener {
-                commitAll()
-                imm().showInputMethodPicker()
-                true
-            }
-        }
-        row.addView(mk, keyParams(1.3f))
-        modeKey = mk
-
-        // 🎤 音声入力 → AIでビジネス敬語に添削 → 自動で入力
-        row.addView(key("🎤", pal.key).apply {
-            textSize = 17f
-            setOnClickListener {
-                it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                startVoice()
-            }
-        }, keyParams(1f))
-
-        // ← → カーソル移動（押しっぱなしで連続）
-        row.addView(key("←", pal.key).apply {
-            textSize = 18f
-            repeatable(this) { cursor(KeyEvent.KEYCODE_DPAD_LEFT) }
-        }, keyParams(1f))
-        row.addView(key("→", pal.key).apply {
-            textSize = 18f
-            repeatable(this) { cursor(KeyEvent.KEYCODE_DPAD_RIGHT) }
-        }, keyParams(1f))
-
-        // スペース（変換中は「変換」：次の候補へ）
-        val sp = key("スペース", pal.key).apply {
-            textSize = 13f
-            setOnClickListener { space(it) }
-        }
-        row.addView(sp, keyParams(2f))
-        spaceKey = sp
-
-        updateModeKey()
-        return row
-    }
-
     private fun switchMode() {
         commitAll()
         resetToggle()
@@ -1094,7 +1142,7 @@ class KookyKeyboardService : InputMethodService() {
         val sub = voiceSubBtn ?: return
         when (stage) {
             1 -> {
-                main.text = "完了（添削して入力）"; main.visibility = View.VISIBLE
+                main.text = "添削して入力"; main.visibility = View.VISIBLE
                 sub.text = "キャンセル"; sub.visibility = View.VISIBLE
             }
             2 -> {
@@ -1280,6 +1328,8 @@ class KookyKeyboardService : InputMethodService() {
 
     private fun insertVoice(text: String, raw: String) {
         currentInputConnection?.commitText(text, 1)
+        lastCommit = text
+        lastReading = null
         lastInserted = text
         lastRaw = raw
     }
