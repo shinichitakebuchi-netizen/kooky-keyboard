@@ -58,7 +58,7 @@ class MainActivity : Activity() {
         setContentView(scroll)
 
         col.addView(text("KOOKY KEYBOARD", 22f, Ui.ORANGE, bold = true))
-        col.addView(text("定型文キーボード v0.11", 12f, Ui.SUB))
+        col.addView(text("定型文キーボード v0.12", 12f, Ui.SUB))
 
         // --- はじめに ---
         col.addView(section("はじめに"))
@@ -254,7 +254,8 @@ class MainActivity : Activity() {
         toast("テスト中…")
         Thread {
             val msg = try {
-                "✅ 成功\n\n元の文：\n$sample\n\n添削後：\n" + Gemini.correct(key, model, sample)
+                val r = Gemini.correct(key, model, sample)
+                "✅ 成功（${r.model}）\n\n元の文：\n$sample\n\n添削後：\n${r.text}"
             } catch (e: Exception) {
                 "⚠ 失敗\n\n${e.message}"
             }

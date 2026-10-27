@@ -21,7 +21,37 @@ object Gemini {
             "・内容、事実、日時、数字、固有名詞は変えない。情報を付け足さない\n" +
             "・出力は整えた本文だけ。前置き、説明、引用符、箇条書きの見出しは付けない"
 
-    fun correct(apiKey: String, model: String, text: String): String {
+    // 混雑時の切り替え先（無料枠の安定版モデル）
+    val FALLBACKS = listOf("gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite")
+
+    class Result(val text: String, val model: String)
+
+    // 設定のモデル → 切り替え先 の順に試す。
+    // 混雑(503等)や通信エラーは同じモデルで1回やり直し、それでもダメなら次のモデルへ。
+    // 上限(429)・モデルなし(404等)はすぐ次のモデルへ。キーの間違い(401/403)はそこで終了。
+    fun correct(apiKey: String, model: String, text: String): Result {
+        val first = model.trim().ifEmpty { DEFAULT_MODEL }
+        val chain = (listOf(first) + FALLBACKS).distinct()
+        var lastError: Exception? = null
+        for (m in chain) {
+            for (attempt in 0..1) {
+                try {
+                    return Result(requestOne(apiKey, m, text), m)
+                } catch (e: HttpError) {
+                    lastError = e
+                    if (e.code == 401 || e.code == 403) throw e
+                    val busy = e.code == 503 || e.code == 500 || e.code == 502 || e.code == 504
+                    if (!busy) break // 429・404などは次のモデルへ
+                } catch (e: IOException) {
+                    lastError = e // タイムアウト等
+                }
+                if (attempt == 0) Thread.sleep(1200)
+            }
+        }
+        throw lastError ?: IOException("AIの添削に失敗したよ")
+    }
+
+    private fun requestOne(apiKey: String, model: String, text: String): String {
         return try {
             request(apiKey, model, text, withThinking = true)
         } catch (e: HttpError) {

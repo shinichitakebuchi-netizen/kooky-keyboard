@@ -1254,9 +1254,10 @@ class KookyKeyboardService : InputMethodService() {
             handler.post {
                 if (token != voiceToken || voiceStage != 2) return@post
                 result.fold(
-                    onSuccess = { fixed ->
-                        insertVoice(fixed, raw)
-                        setStage(3, "✅ 添削して入力したよ", fixed)
+                    onSuccess = { r ->
+                        insertVoice(r.text, raw)
+                        val note = if (r.model != model.trim().ifEmpty { Gemini.DEFAULT_MODEL }) "（混雑のため ${r.model} で添削）" else ""
+                        setStage(3, "✅ 添削して入力したよ$note", r.text)
                     },
                     onFailure = { e ->
                         insertVoice(raw, raw)
