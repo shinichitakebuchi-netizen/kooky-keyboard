@@ -24,6 +24,7 @@ class Dict(private val context: Context) {
         const val UNK_POS = 1851      // 名詞,一般（辞書にない文字・登録単語に使う品詞）
         const val UNK_COST = 12000    // 辞書にない1文字の重さ
         const val USER_COST = 2000    // 登録単語は優先
+        const val COMMON_COST = 5000  // よく使う言葉（英語表記など）
         const val LEARN_BONUS = 3000  // 一度選んだ変換は軽くする
         const val MAX_WORD = 12       // 1語の読みの最大文字数
     }
@@ -43,6 +44,9 @@ class Dict(private val context: Context) {
     // 学習（読み→単語→回数）と登録単語（読み→単語）はメモリに持つ
     private val learned = HashMap<String, HashMap<String, Int>>()
     private val user = HashMap<String, MutableList<String>>()
+
+    // よく使う言葉の一覧（assets/common.tsv：読み<TAB>単語）
+    private val common = HashMap<String, MutableList<String>>()
     private var userVer = -1
 
     // 辞書を引いた結果のキャッシュ
@@ -99,7 +103,25 @@ class Dict(private val context: Context) {
         tmp.renameTo(dest)
     }
 
+    private fun loadCommon() {
+        if (common.isNotEmpty()) return
+        try {
+            context.assets.open("common.tsv").bufferedReader(Charsets.UTF_8).useLines { lines ->
+                for (line in lines) {
+                    if (line.isBlank() || line.startsWith("#")) continue
+                    val p = line.split("\t")
+                    if (p.size < 2) continue
+                    val r = p[0].trim()
+                    val w = p[1].trim()
+                    if (r.isNotEmpty() && w.isNotEmpty()) synchronized(common) { common.getOrPut(r) { ArrayList() }.add(w) }
+                }
+            }
+        } catch (e: Exception) {
+        }
+    }
+
     private fun loadMemory() {
+        loadCommon()
         synchronized(learned) {
             learned.clear()
             for ((r, w, n) in learnDb.allLearned()) learned.getOrPut(r) { HashMap() }[w] = n
@@ -161,7 +183,8 @@ class Dict(private val context: Context) {
         }
         val lw = synchronized(learned) { learned[r]?.toMap() }
         val uw = synchronized(user) { user[r]?.toList() }
-        if (lw == null && uw == null) return raw
+        val cw = synchronized(common) { common[r]?.toList() }
+        if (lw == null && uw == null && cw == null) return raw
 
         val out = ArrayList<Entry>(raw.size + 4)
         val have = HashSet<String>()
@@ -171,6 +194,10 @@ class Dict(private val context: Context) {
             have.add(e.w)
         }
         uw?.forEach { w -> if (have.add(w)) out.add(Entry(w, UNK_POS, UNK_POS, USER_COST)) }
+        cw?.forEach { w ->
+            val bonus = if (lw?.containsKey(w) == true) LEARN_BONUS else 0
+            if (have.add(w)) out.add(Entry(w, UNK_POS, UNK_POS, maxOf(0, COMMON_COST - bonus)))
+        }
         lw?.keys?.forEach { w -> if (have.add(w)) out.add(Entry(w, UNK_POS, UNK_POS, 4000)) }
         return out
     }
@@ -270,7 +297,10 @@ class Dict(private val context: Context) {
                 add(path.joinToString("") { it.w }, n, if (path.size > 1) segs else null)
             }
 
-            // 3. 読み全体に一致する単語
+            // 3. よく使う言葉（英語表記など：あまぞん → Amazon）
+            synchronized(common) { common[reading]?.toList() }?.forEach { add(it, n) }
+
+            // 4. 読み全体に一致する単語
             words(reading, 6).forEach { add(it, n) }
 
             // 4. ひらがな・カタカナ
