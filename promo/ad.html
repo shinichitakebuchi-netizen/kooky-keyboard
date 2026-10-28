@@ -1,0 +1,678 @@
+<title>Kooky Keyboard 広告ムービー</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto:wght@500;700&display=swap">
+<style>
+/* 縦長9:16のステージ（360×640の設計サイズ）を中央に置き、下に操作ボタンと進み具合のバー */
+:root {
+  --page: #0B1428;      /* ページの地 */
+  --navy: #14213D;      /* アプリの背景色 */
+  --card: #1F2F52;      /* アプリのカード色 */
+  --key: #2A3B63;       /* アプリのキー色 */
+  --orange: #F28C28;    /* アプリのアクセント */
+  --sub: #9AA7C2;       /* アプリの補助文字 */
+  --white: #FFFFFF;
+  --ja: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+  --en: "Roboto", "Noto Sans JP", "Helvetica Neue", Arial, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--page);
+  color: var(--white);
+  font-family: var(--ja);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  overflow-x: hidden;
+}
+#wrap { position: relative; max-width: 100%; }
+#stage {
+  position: absolute; left: 0; top: 0;
+  width: 360px; height: 640px;
+  transform-origin: 0 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(242,140,40,.18), transparent 38%),
+    radial-gradient(circle at 92% 96%, rgba(47,111,214,.16), transparent 42%),
+    radial-gradient(rgba(154,167,194,.10) 1px, transparent 1.2px) 0 0 / 14px 14px,
+    var(--navy);
+  border-radius: 18px;
+  font-family: var(--ja);
+  color: var(--white);
+  -webkit-font-smoothing: antialiased;
+}
+.ctrl { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.ctrl button {
+  font: 500 14px var(--ja); color: var(--white);
+  background: var(--card); border: 1px solid #33456F; border-radius: 10px;
+  padding: 10px 16px; cursor: pointer; min-width: 120px;
+}
+.ctrl button.main { background: var(--orange); color: var(--navy); border-color: var(--orange); }
+.ctrl button:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+#bar { width: 100%; height: 6px; background: var(--card); border-radius: 3px; overflow: hidden; }
+#barIn { height: 100%; width: 0; background: var(--orange); }
+#time { font: 500 12px var(--en); color: var(--sub); font-variant-numeric: tabular-nums; }
+#under { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+
+/* ---------- キャプション（上：英語ラベル／下：日本語） ---------- */
+#cap { position: absolute; left: 0; right: 0; top: 46px; text-align: center; }
+#capL { font: 700 11px var(--en); letter-spacing: .28em; color: var(--orange); }
+#capJ { font: 700 21px var(--ja); margin-top: 8px; letter-spacing: .02em; text-wrap: balance; }
+
+/* ---------- スマホ ---------- */
+#phone {
+  position: absolute; left: 55px; top: 140px; width: 250px; height: 476px;
+  border-radius: 32px; background: #070C18; padding: 7px; box-sizing: border-box;
+  box-shadow: 0 18px 40px rgba(0,0,0,.45), inset 0 0 0 1.5px #2A3550;
+}
+#screen { position: relative; width: 100%; height: 100%; border-radius: 26px; overflow: hidden; background: #EEF1F6; }
+.sbar { height: 20px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font: 500 9px var(--en); color: #1E2433; }
+.sbar i { width: 34px; height: 9px; border-radius: 5px; background: #1E2433; opacity: .85; }
+.apphead { height: 28px; display: flex; align-items: center; gap: 8px; padding: 0 12px; font: 700 11px var(--ja); color: #1E2433; border-bottom: 1px solid #DCE1EA; background: #F7F8FB; }
+.apphead b { width: 18px; height: 18px; border-radius: 50%; background: #C9D3E6; }
+.chat { padding: 10px 10px; display: flex; flex-direction: column; gap: 7px; }
+.bub { max-width: 74%; font-size: 9.5px; line-height: 1.45; padding: 6px 9px; border-radius: 12px; color: #1E2433; background: #FFFFFF; }
+.bub.me { align-self: flex-end; background: #D9E6FF; }
+.inbar { position: absolute; left: 0; right: 0; bottom: 167px; padding: 6px 8px; background: #F7F8FB; border-top: 1px solid #DCE1EA; }
+.field { min-height: 26px; border-radius: 13px; background: #FFFFFF; border: 1px solid #D3D9E4; padding: 6px 10px; box-sizing: border-box; font-size: 10px; line-height: 1.4; color: #1E2433; }
+.field .ph { color: #9AA3B5; }
+#comp { border-bottom: 1.5px solid var(--orange); }
+.caret { display: inline-block; width: 1.2px; height: 11px; background: var(--orange); vertical-align: -1.5px; margin-left: 1px; }
+#tpill { position: absolute; left: 50%; top: 66px; transform: translateX(-50%); padding: 5px 12px; border-radius: 12px; background: rgba(20,33,61,.9); color: var(--white); font: 700 10px var(--ja); white-space: nowrap; }
+
+/* ---------- キーボード（アプリと同じ配置：ツールバー＋5列×4段） ---------- */
+#kb {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 3px; box-sizing: border-box;
+  background: var(--kbg); overflow: hidden;
+  --kbg: #14213D; --kcard: #1F2F52; --kkey: #2A3B63; --ktext: #FFFFFF; --ksub: #9AA7C2; --kon: #14213D;
+}
+.kbimg { position: absolute; inset: 0; opacity: 0;
+  background:
+    radial-gradient(circle at 18% 30%, #F28C28 0, transparent 42%),
+    radial-gradient(circle at 78% 72%, #2F6FD6 0, transparent 48%),
+    radial-gradient(circle at 60% 15%, #E04F5F 0, transparent 35%),
+    linear-gradient(135deg, #3B2A6B, #1D5B78); }
+.kbin { position: relative; }
+.grip { height: 0; display: flex; align-items: center; justify-content: space-between; overflow: hidden; color: var(--ksub); padding: 0 4px; }
+.grip .gl { flex: 1; display: grid; place-items: center; }
+.grip svg { width: 16px; height: 16px; }
+.grip .dock { width: 24px; height: 15px; border-radius: 8px; background: var(--orange); color: var(--kon); display: grid; place-items: center; }
+.grip .dock svg { width: 11px; height: 11px; }
+.tool { display: flex; gap: 3px; height: 24px; align-items: center; }
+.ti { width: 25px; height: 22px; border-radius: 5px; background: var(--kcard); color: var(--ksub); display: grid; place-items: center; flex: 0 0 auto; }
+.ti svg { width: 14px; height: 14px; }
+.ti.on { background: var(--orange); color: var(--kon); }
+.tspace { flex: 1; height: 22px; overflow: hidden; }
+#cands { display: flex; gap: 3px; height: 22px; }
+.cand { padding: 0 7px; border-radius: 3px; background: var(--kcard); color: var(--ktext); font-size: 10px; display: flex; align-items: center; white-space: nowrap; }
+.cand.on { background: var(--orange); color: var(--kon); }
+.kbody { position: relative; display: grid; grid-template-columns: 1fr 3fr 1fr; grid-template-rows: minmax(0, 1fr); height: 134px; margin-top: 3px; }
+.col { display: grid; grid-template-rows: repeat(4, minmax(0, 1fr)); gap: 3px; padding: 0 1.5px; min-height: 0; }
+.center { position: relative; }
+.grid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, minmax(0, 1fr)); gap: 3px; padding: 0 1.5px; }
+.k { min-height: 0; background: var(--kkey); border-radius: 6px; color: var(--ktext); display: grid; place-items: center; font: 500 14px var(--ja); position: relative; }
+.k.s { font-size: 9.5px; }
+.k.en { font: 500 11px var(--en); }
+.k.en.s { font-size: 9.5px; }
+.k svg { width: 14px; height: 14px; }
+.k.on::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: rgba(242,140,40,.4); }
+.k.ent { background: var(--orange); color: var(--kon); border-radius: 14px; }
+.mode { font-size: 8px; white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 2px; }
+.mode span { color: var(--ksub); }
+.mode span.cur { color: var(--orange); font-size: 11px; font-weight: 700; }
+.phr { position: absolute; inset: 0; overflow: hidden; padding: 0 2px; display: none; }
+.phrIn { will-change: transform; }
+.hd { color: var(--orange); font: 700 9px var(--ja); margin: 4px 2px 3px; }
+.pg { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+.pc { background: var(--kkey); border-radius: 6px; padding: 4px 6px; height: 30px; box-sizing: border-box; overflow: hidden; position: relative; }
+.pc b { display: block; font: 700 9.5px var(--ja); color: var(--ktext); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc span { display: block; font-size: 7.5px; color: var(--ksub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.pc.on::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: rgba(242,140,40,.4); }
+.voice { position: absolute; inset: 0 1.5px; background: var(--kcard); border-radius: 6px; padding: 6px 7px; box-sizing: border-box; display: none; flex-direction: column; }
+.vs { color: var(--orange); font: 700 9px var(--ja); display: flex; align-items: center; gap: 4px; }
+.vs svg { width: 11px; height: 11px; }
+.vb { flex: 1; color: var(--ktext); font-size: 9.5px; line-height: 1.5; margin-top: 4px; overflow: hidden; }
+.vbtns { display: flex; gap: 4px; height: 22px; }
+.vbtn { flex: 1; border-radius: 6px; background: var(--kkey); color: var(--ktext); font: 500 8.5px var(--ja); display: grid; place-items: center; position: relative; }
+.vbtn.main { flex: 1.6; background: var(--orange); color: var(--kon); font-weight: 700; }
+.vbtn.on::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: rgba(255,255,255,.35); }
+#foot { position: absolute; left: 0; right: 0; top: 622px; text-align: center; font-size: 9px; color: var(--sub); }
+
+/* ---------- 指 ---------- */
+#finger { position: absolute; left: 0; top: 0; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
+  background: rgba(255,255,255,.38); box-shadow: 0 0 0 2px rgba(255,255,255,.9), 0 4px 10px rgba(0,0,0,.35); opacity: 0; pointer-events: none; }
+#ring { position: absolute; left: 0; top: 0; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; border: 2px solid var(--orange); opacity: 0; pointer-events: none; }
+
+/* ---------- オープニング・エンディング ---------- */
+.over { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; opacity: 0; }
+.logo { width: 92px; height: 92px; border-radius: 22px; box-shadow: 0 0 0 1.5px rgba(255,255,255,.18), 0 14px 30px rgba(0,0,0,.4); }
+.name { font: 700 27px var(--en); letter-spacing: .12em; margin-top: 22px; }
+.name em { font-style: normal; color: var(--orange); }
+.tag1 { font: 700 16px var(--ja); margin-top: 14px; }
+.tag2 { font-size: 10.5px; color: var(--sub); margin-top: 8px; }
+#end .card { width: 292px; padding: 26px 18px 22px; border-radius: 22px; background: rgba(31,47,82,.92); box-shadow: 0 0 0 1px #33456F, 0 18px 40px rgba(0,0,0,.4); box-sizing: border-box; display: flex; flex-direction: column; align-items: center; }
+#end .logo { width: 64px; height: 64px; border-radius: 16px; }
+#end .name { font-size: 22px; margin-top: 14px; }
+#end .tag1 { font-size: 14px; margin-top: 8px; }
+.tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 18px; }
+.tags span { font: 500 10.5px var(--ja); padding: 5px 10px; border-radius: 4px; border: 1px solid var(--orange); color: var(--white); background: rgba(242,140,40,.1); }
+#end .tag2 { margin-top: 16px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ctrl button { transition: none; }
+}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- アプリに入っている手作りアイコン（res/drawable/ic_kb_*.xml と同じ形） -->
+    <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.8,12a6.2,6.2 0 1,0 12.4,0a6.2,6.2 0 1,0 -12.4,0"/><path d="M9.6,12a2.4,2.4 0 1,0 4.8,0a2.4,2.4 0 1,0 -4.8,0"/><path d="M12,2.5v3M12,18.5v3M2.5,12h3M18.5,12h3M5.3,5.3l2.1,2.1M16.6,16.6l2.1,2.1M5.3,18.7l2.1,-2.1M16.6,7.4l2.1,-2.1"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12,3a3,3 0 0 1 3,3v5a3,3 0 0 1 -6,0v-5a3,3 0 0 1 3,-3z"/><path d="M5.5,11a6.5,6.5 0 0 0 13,0M12,17.5V21M9,21h6"/></symbol>
+    <symbol id="i-hand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.2,3h4.6a2.2,2.2 0 0 1 2.2,2.2v13.6a2.2,2.2 0 0 1 -2.2,2.2h-4.6a2.2,2.2 0 0 1 -2.2,-2.2v-13.6a2.2,2.2 0 0 1 2.2,-2.2z"/><path d="M14.5,17.5h2M3,12h5M6,9l-3,3 3,3"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5,5.5L4,10l4.5,4.5"/><path d="M4,10h10a5,5 0 0 1 0,10h-3"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5,5H20a1,1 0 0 1 1,1v12a1,1 0 0 1 -1,1H8.5L3,12z"/><path d="M11.5,9.5l5,5M16.5,9.5l-5,5"/></symbol>
+    <symbol id="i-enter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M19,5v6a3,3 0 0 1 -3,3H5"/><path d="M9,10l-4,4 4,4"/></symbol>
+    <symbol id="i-space" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4,10v4h16v-4"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24" fill="currentColor"><path d="M15,6.5v11L7.5,12z"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24" fill="currentColor"><path d="M9,6.5v11l7.5,-5.5z"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14,4h6v6M10,20H4v-6M20,4l-6.5,6.5M4,20l6.5,-6.5"/></symbol>
+    <symbol id="i-phrase" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7,3h10a2,2 0 0 1 2,2v14a2,2 0 0 1 -2,2h-10a2,2 0 0 1 -2,-2v-14a2,2 0 0 1 2,-2z"/><path d="M9,8h6M9,12h6M9,16h4"/></symbol>
+    <symbol id="i-float" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4,6h12a1.5,1.5 0 0 1 1.5,1.5v8a1.5,1.5 0 0 1 -1.5,1.5h-12a1.5,1.5 0 0 1 -1.5,-1.5v-8a1.5,1.5 0 0 1 1.5,-1.5z"/><path d="M7.5,9.5h5M20.5,10v9a1.5,1.5 0 0 1 -1.5,1.5h-12"/></symbol>
+    <symbol id="i-drag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5,9.5h14M5,14.5h14"/></symbol>
+    <!-- アプリのアイコン（res/drawable/ic_launcher.xml と同じ形） -->
+    <symbol id="i-logo" viewBox="0 0 48 48"><path fill="#14213D" d="M8,0h32a8,8 0 0 1 8,8v32a8,8 0 0 1 -8,8h-32a8,8 0 0 1 -8,-8v-32a8,8 0 0 1 8,-8z"/><path fill="#F28C28" d="M9,14h30a3,3 0 0 1 3,3v15a3,3 0 0 1 -3,3h-30a3,3 0 0 1 -3,-3v-15a3,3 0 0 1 3,-3z"/><path fill="#14213D" d="M10,18h4v3h-4z M16,18h4v3h-4z M22,18h4v3h-4z M28,18h4v3h-4z M34,18h4v3h-4z M10,23h4v3h-4z M16,23h4v3h-4z M22,23h4v3h-4z M28,23h4v3h-4z M34,23h4v3h-4z M15,28h18v3h-18z"/></symbol>
+  </defs>
+</svg>
+
+<div id="wrap" role="img" aria-label="Kooky Keyboardの広告アニメーション。定型文、フリック入力と文章変換、英語・数字の切り替え、音声入力のAI添削、フローティング、着せかえを順に紹介する約25秒のループ">
+  <div id="stage">
+    <div id="cap"><div id="capL"></div><div id="capJ"></div></div>
+
+    <div id="phone">
+      <div id="screen">
+        <div class="sbar"><span>9:41</span><i></i></div>
+        <div class="apphead"><b></b>チャット</div>
+        <div class="chat">
+          <div class="bub">明日の予定、確認お願いします</div>
+          <div class="bub me">了解です。夕方までに返信します</div>
+          <div class="bub">資料も一緒にお願いします</div>
+          <div class="bub me">承知しました</div>
+          <div class="bub">ありがとうございます</div>
+        </div>
+        <div id="tpill"></div>
+        <div class="inbar" id="inbar"><div class="field"><span id="inTxt"></span><span id="comp"></span><i class="caret" id="caret"></i><span class="ph" id="ph">メッセージを入力</span></div></div>
+
+        <div id="kb">
+          <div class="kbimg" id="kbimg"></div>
+          <div class="kbin">
+            <div class="grip" id="grip"><div class="gl" id="gripL"><svg><use href="#i-drag"/></svg></div><div class="dock"><svg><use href="#i-expand"/></svg></div></div>
+            <div class="tool">
+              <div class="ti" id="tGear"><svg><use href="#i-gear"/></svg></div>
+              <div class="tspace"><div id="cands"></div></div>
+              <div class="ti" id="tPhr"><svg><use href="#i-phrase"/></svg></div>
+              <div class="ti" id="tFlt"><svg><use href="#i-float"/></svg></div>
+              <div class="ti" id="tHand"><svg><use href="#i-hand"/></svg></div>
+              <div class="ti" id="tMic"><svg><use href="#i-mic"/></svg></div>
+            </div>
+            <div class="kbody" id="kbody">
+              <div class="col">
+                <div class="k"><svg><use href="#i-undo"/></svg></div>
+                <div class="k"><svg><use href="#i-left"/></svg></div>
+                <div class="k en" style="font-size:14px">@</div>
+                <div class="k mode" id="kMode"><span>あ</span><span>A</span><span>1</span></div>
+              </div>
+              <div class="center">
+                <div class="grid" id="gJa"></div>
+                <div class="grid" id="gEn"></div>
+                <div class="grid" id="gNum"></div>
+                <div class="voice" id="voice">
+                  <div class="vs" id="vs"></div>
+                  <div class="vb" id="vb"></div>
+                  <div class="vbtns"><div class="vbtn" id="vSub">キャンセル</div><div class="vbtn main" id="vMain">添削して入力</div></div>
+                </div>
+              </div>
+              <div class="col">
+                <div class="k" id="kBack"><svg><use href="#i-back"/></svg></div>
+                <div class="k"><svg><use href="#i-right"/></svg></div>
+                <div class="k" id="kSpace"><svg><use href="#i-space"/></svg></div>
+                <div class="k ent"><svg><use href="#i-enter"/></svg></div>
+              </div>
+              <div class="phr" id="phr"><div class="phrIn" id="phrIn"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="foot">※ AI添削を使うには、Gemini APIキーの設定が必要です</div>
+
+    <div class="over" id="open">
+      <svg class="logo" id="oLogo"><use href="#i-logo"/></svg>
+      <div class="name" id="oName"><em>KOOKY</em> KEYBOARD</div>
+      <div class="tag1" id="oTag1">仕事の文字入力を、もっと速く。</div>
+      <div class="tag2" id="oTag2">定型文・文章変換・音声AI添削のキーボード</div>
+    </div>
+
+    <div class="over" id="end">
+      <div class="card" id="eCard">
+        <svg class="logo"><use href="#i-logo"/></svg>
+        <div class="name"><em>KOOKY</em> KEYBOARD</div>
+        <div class="tag1">仕事の文字入力を、もっと速く。</div>
+        <div class="tags" id="eTags"></div>
+        <div class="tag2">Android用・自作キーボード</div>
+      </div>
+    </div>
+
+    <div id="ring"></div>
+    <div id="finger"></div>
+  </div>
+</div>
+
+<div id="under">
+  <div class="ctrl">
+    <button id="bPlay" class="main" type="button">一時停止</button>
+    <button id="bRestart" type="button">最初から再生</button>
+  </div>
+  <div id="bar"><div id="barIn"></div></div>
+  <div id="time">0.0 / 25.0 秒</div>
+</div>
+
+<script>
+(() => {
+  const VIDEO = window.VIDEO_MODE === true;
+  const D = 25.0;
+  const $ = (id) => document.getElementById(id);
+  const stage = $("stage"), wrap = $("wrap");
+
+  // ---------- 便利関数 ----------
+  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const ease = (p) => { p = clamp(p); return p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; };
+  const out = (p) => { p = clamp(p); return 1 - Math.pow(1 - p, 3); };
+  const prog = (t, a, b) => clamp((t - a) / (b - a));
+  const setT = (el, s) => { if (el.textContent !== s) el.textContent = s; };
+  const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const mix = (a, b, p) => a.map((v, i) => Math.round(v + (b[i] - v) * p));
+  const rgba = (c, al = 1) => `rgba(${c[0]},${c[1]},${c[2]},${al})`;
+
+  // ---------- キーを作る ----------
+  const JA = [["a","あ"],["ka","か"],["sa","さ"],["ta","た"],["na","な"],["ha","は"],["ma","ま"],["ya","や"],["ra","ら"],["dk","小゛゜"],["wa","わ"],["pu","、。?!"]];
+  const EN = [["e1","@#/&_"],["abc","abc"],["def","def"],["ghi","ghi"],["jkl","jkl"],["mno","mno"],["pqrs","pqrs"],["tuv","tuv"],["wxyz","wxyz"],["case","a/A"],["q","'\"()"],["p",".,?!"]];
+  const NUM = [["1","1"],["2","2"],["3","3"],["4","4"],["5","5"],["6","6"],["7","7"],["8","8"],["9","9"],["br","()[]"],["0","0"],["np",".,-/"]];
+  const K = {};
+  function fill(grid, list, cls) {
+    for (const [id, lab] of list) {
+      const d = document.createElement("div");
+      d.className = "k " + cls + (lab.length > 2 ? " s" : "");
+      d.textContent = lab;
+      d.dataset.lab = lab;
+      grid.appendChild(d);
+      K[grid.id + ":" + id] = d;
+    }
+  }
+  fill($("gJa"), JA, "");
+  fill($("gEn"), EN, "en");
+  fill($("gNum"), NUM, "en");
+  const allKeys = [...document.querySelectorAll(".k")];
+  const modeSpans = [...$("kMode").querySelectorAll("span")];
+
+  // ---------- 定型文パネル（中身はデモ用の作り物） ----------
+  const PHR = [
+    ["接客", [["来店お礼","本日はご来店いただき、ありがとうございます。"],["予約確認","ご予約ありがとうございます。当日お待ちしております。"],["お待たせ","大変お待たせいたしました。"],["受付のご案内","受付は2階のカウンターです。"]]],
+    ["社内連絡", [["お疲れさまです","お疲れさまです。"],["承知しました","承知しました。対応いたします。"],["シフト提出","来月のシフト希望の提出をお願いします。"],["遅れます","10分ほど遅れます。申し訳ありません。"]]]
+  ];
+  const PC = {};
+  for (const [cat, items] of PHR) {
+    const h = document.createElement("div"); h.className = "hd"; h.textContent = cat; $("phrIn").appendChild(h);
+    const g = document.createElement("div"); g.className = "pg";
+    for (const [ti, body] of items) {
+      const c = document.createElement("div"); c.className = "pc";
+      c.innerHTML = "<b></b><span></span>"; c.children[0].textContent = ti; c.children[1].textContent = body;
+      g.appendChild(c); PC[ti] = c;
+    }
+    $("phrIn").appendChild(g);
+  }
+
+  // ---------- エンディングの機能タグ（今アプリに入っている機能だけ） ----------
+  const TAGS = ["定型文パネル","文章ごと変換","英語・数字フリック","音声入力＋AI添削","フローティング","着せかえ・背景画像","単語登録","片手モード"];
+  const tagEls = TAGS.map((s) => { const e = document.createElement("span"); e.textContent = s; $("eTags").appendChild(e); return e; });
+
+  // ---------- 配色（アプリの Themes と同じ値） ----------
+  const TH = {
+    navy:  { bg: hex("#14213D"), card: hex("#1F2F52"), key: hex("#2A3B63"), text: hex("#FFFFFF"), sub: hex("#9AA7C2"), on: hex("#14213D") },
+    black: { bg: hex("#0E0E10"), card: hex("#1C1C1F"), key: hex("#2B2B30"), text: hex("#FFFFFF"), sub: hex("#9A9AA2"), on: hex("#111111") },
+    light: { bg: hex("#F2F0EB"), card: hex("#E2DFD8"), key: hex("#FFFFFF"), text: hex("#1E1E1E"), sub: hex("#6B6B6B"), on: hex("#1E1E1E") }
+  };
+  function theme(a, b, p, bgA = 1, keyA = 1) {
+    const kb = $("kb").style, A = TH[a], B = TH[b];
+    kb.setProperty("--kbg", rgba(mix(A.bg, B.bg, p), bgA));
+    kb.setProperty("--kcard", rgba(mix(A.card, B.card, p), Math.min(1, keyA + .15)));
+    kb.setProperty("--kkey", rgba(mix(A.key, B.key, p), keyA));
+    kb.setProperty("--ktext", rgba(mix(A.text, B.text, p)));
+    kb.setProperty("--ksub", rgba(mix(A.sub, B.sub, p)));
+    kb.setProperty("--kon", rgba(mix(A.on, B.on, p)));
+  }
+
+  // ---------- 指 ----------
+  // 指の座標はステージ（360×640）の単位。要素の真ん中を毎回測る（キーボードが動いても追いかける）
+  function center(el) {
+    const sr = stage.getBoundingClientRect(), r = el.getBoundingClientRect(), k = sr.width / 360;
+    return [(r.left + r.width / 2 - sr.left) / k, (r.top + r.height / 2 - sr.top) / k];
+  }
+  const DIR = [[0, 0], [-1, 0], [0, -1], [1, 0], [0, 1]];
+  // pts: [{t, el, dir(フリック方向), hold(次の点まで押したまま)}]
+  function finger(lt, pts) {
+    const f = $("finger").style, r = $("ring").style;
+    if (!pts.length) return;
+    const first = pts[0], last = pts[pts.length - 1];
+    let i = 0;
+    while (i < pts.length - 1 && lt >= pts[i + 1].t) i++;
+    const a = pts[i], b = pts[i + 1];
+    let [x, y] = center(a.el);
+    if (lt < first.t) {
+      const p = out(prog(lt, first.t - .45, first.t - .1));
+      y += 26 * (1 - p);
+      f.opacity = p;
+    } else {
+      f.opacity = 1 - prog(lt, last.t + .35, last.t + .55);
+    }
+    if (b && lt >= a.t) {
+      const gap = b.t - a.t, mv = Math.min(.3, gap - .14);
+      const p = ease(prog(lt, b.t - mv, b.t));
+      const [bx, by] = center(b.el);
+      if (p > 0) { x += (bx - x) * p; y += (by - y) * p; }
+    }
+    // タップ・フリックの動き
+    let press = 0;
+    for (const pt of pts) {
+      const d = lt - pt.t;
+      if (d >= 0 && d < .18) {
+        press = 1;
+        if (pt.dir) { const q = out(d / .12); const [dx, dy] = DIR[pt.dir]; x += dx * 15 * q; y += dy * 15 * q; }
+        r.opacity = 1 - d / .18;
+        r.transform = `translate(${x}px,${y}px) scale(${1 + d * 6})`;
+      }
+      if (pt.hold && lt >= pt.t) { const nx = pts[pts.indexOf(pt) + 1]; if (nx && lt < nx.t) press = 1; }
+    }
+    f.transform = `translate(${x}px,${y}px) scale(${press ? .86 : 1})`;
+  }
+  const tapping = (lt, t) => lt >= t && lt < t + .18;
+
+  // ---------- 各場面 ----------
+  const SCENES = [
+    { s: 2.4,  e: 5.6,  l: "TEMPLATE", j: "よく使う文は、ワンタップ。", f: sTemplate },
+    { s: 5.6,  e: 8.8,  l: "FLICK",    j: "フリックで、文章ごと変換。", f: sFlick },
+    { s: 8.8,  e: 12.0, l: "ENGLISH",  j: "英語も数字も、キーひとつで。", f: sEnglish },
+    { s: 12.0, e: 15.2, l: "VOICE",    j: "話すだけで、ビジネス敬語に。", f: sVoice },
+    { s: 15.2, e: 18.4, l: "FLOAT",    j: "どこにでも置ける、フローティング。", f: sFloat },
+    { s: 18.4, e: 21.6, l: "THEME",    j: "色も背景も、自分好みに。", f: sTheme }
+  ];
+
+  let st;
+  function resetState() {
+    st = { text: "", comp: "", mode: 0, phr: false, phrScroll: 0, voice: false, cands: null, candOn: -1, on: [], label: {}, fl: 0, dx: 0, dy: 0, inbarDrop: 0, tpill: "", foot: 0 };
+    theme("navy", "navy", 0);
+    $("kbimg").style.opacity = 0;
+    for (const id of ["tGear", "tPhr", "tFlt", "tHand", "tMic"]) $(id).classList.remove("on");
+    $("finger").style.opacity = 0; $("ring").style.opacity = 0;
+  }
+
+  function sTemplate(lt) {
+    const tIcon = .55, tCell = 1.55;
+    finger(lt, [{ t: tIcon, el: $("tPhr") }, { t: tCell, el: PC["来店お礼"] }, { t: 2.6, el: PC["来店お礼"] }]);
+    if (lt >= tIcon) { st.phr = true; $("tPhr").classList.add("on"); }
+    if (tapping(lt, tIcon)) st.on.push($("tPhr"));
+    if (tapping(lt, tCell)) st.on.push(PC["来店お礼"]);
+    if (lt >= tCell) st.text = "本日はご来店いただき、ありがとうございます。";
+    st.phrScroll = 74 * ease(prog(lt, 2.2, 2.9));
+  }
+
+  // おせわになっております をフリックで入力 → 候補をタップ
+  const FL = [["a",4,"お"],["sa",3,"せ"],["wa",0,"わ"],["na",1,"に"],["na",0,"な"],["ta",2,"つ"],["dk",0,"っ"],["ta",3,"て"],["a",4,"お"],["ra",1,"り"],["ma",0,"ま"],["sa",2,"す"]];
+  const kata = (s) => s.replace(/[ぁ-ゖ]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0x60));
+  function sFlick(lt) {
+    const t0 = .35, dt = .13, tCand = 2.35;
+    const pts = FL.map(([k, d], i) => ({ t: t0 + i * dt, el: K["gJa:" + k], dir: d }));
+    const candEl = () => $("cands").children[0] || $("tGear");
+    let comp = "";
+    FL.forEach(([k, d, c], i) => {
+      const t = t0 + i * dt;
+      if (lt >= t) { if (c === "っ") comp = comp.slice(0, -1) + "っ"; else comp += c; }
+      if (tapping(lt, t)) { st.on.push(K["gJa:" + k]); if (d) st.label["gJa:" + k] = c; }
+    });
+    if (lt < tCand) {
+      st.comp = comp;
+      if (comp) st.cands = comp.length >= 11 ? ["お世話になっております", "お世話…", "おせわになっております", kata(comp)] : [comp, kata(comp)];
+      if (comp.length >= 11 && tapping(lt, tCand - .0001 + 0)) st.candOn = 0;
+    } else {
+      st.text = "お世話になっております";
+    }
+    if (lt >= tCand - .02 && lt < tCand + .18 && comp.length >= 11) { st.cands = ["お世話になっております", "お世話…", "おせわになっております", kata(comp)]; st.candOn = 0; st.comp = lt < tCand ? comp : ""; }
+    // 候補のチップは描画後に位置が決まるので、指の最後の点は候補へ
+    pts.push({ t: tCand, el: { getBoundingClientRect: () => candEl().getBoundingClientRect() } });
+    pts.push({ t: 2.9, el: { getBoundingClientRect: () => $("inTxt").getBoundingClientRect() } });
+    st._finger = pts;
+  }
+
+  // 英語：h（左フリック）→ a/A で H → i（上フリック）→ 空白 → 数字に切り替えて 10:00
+  function sEnglish(lt) {
+    const ev = [
+      { t: .45, el: $("kMode"), act: () => { st.mode = 1; } },
+      { t: .8,  el: K["gEn:ghi"], dir: 1, lab: "h", act: () => { st.text += "h"; } },
+      { t: 1.08, el: K["gEn:case"], act: () => { st.text = st.text.slice(0, -1) + "H"; } },
+      { t: 1.34, el: K["gEn:ghi"], dir: 2, lab: "i", act: () => { st.text += "i"; } },
+      { t: 1.6, el: $("kSpace"), act: () => { st.text += " "; } },
+      { t: 1.86, el: $("kMode"), act: () => { st.mode = 2; } },
+      { t: 2.1, el: K["gNum:1"], act: () => { st.text += "1"; } },
+      { t: 2.28, el: K["gNum:0"], act: () => { st.text += "0"; } },
+      { t: 2.46, el: K["gNum:7"], dir: 3, lab: ":", act: () => { st.text += ":"; } },
+      { t: 2.64, el: K["gNum:0"], act: () => { st.text += "0"; } },
+      { t: 2.82, el: K["gNum:0"], act: () => { st.text += "0"; } }
+    ];
+    for (const e of ev) {
+      if (lt >= e.t) e.act();
+      if (tapping(lt, e.t)) { st.on.push(e.el); if (e.lab) st.label[e.el === K["gEn:ghi"] ? "gEn:ghi" : "gNum:7"] = e.lab; }
+    }
+    st._finger = ev.map((e) => ({ t: e.t, el: e.el, dir: e.dir || 0 }));
+  }
+
+  function sVoice(lt) {
+    const tMic = .45, tMain = 1.85, tDone = 2.4;
+    const raw = "えーと、明日の打ち合わせは10時からでお願いします";
+    const fixed = "明日の打ち合わせは10時からでお願いいたします。";
+    st.foot = 1;
+    if (lt >= tMic) { st.voice = true; $("tMic").classList.add("on"); }
+    if (tapping(lt, tMic)) st.on.push($("tMic"));
+    const vs = $("vs"), vb = $("vb");
+    const mic = '<svg><use href="#i-mic"/></svg>';
+    if (lt < tMain) {
+      const n = Math.floor(raw.length * prog(lt, .6, 1.6));
+      if (vs.dataset.k !== "l") { vs.innerHTML = mic + "聞いています…"; vs.dataset.k = "l"; }
+      setT(vb, raw.slice(0, n));
+      setT($("vSub"), "キャンセル"); setT($("vMain"), "添削して入力");
+    } else if (lt < tDone) {
+      const dots = ".".repeat(1 + Math.floor((lt - tMain) / .15) % 3);
+      const s = "AIで添削中" + dots;
+      if (vs.dataset.k !== s) { vs.textContent = s; vs.dataset.k = s; }
+      setT(vb, raw);
+      setT($("vMain"), "添削中…");
+    } else {
+      if (vs.dataset.k !== "d") { vs.textContent = "添削して入力しました"; vs.dataset.k = "d"; }
+      setT(vb, fixed);
+      setT($("vSub"), "元の文に戻す"); setT($("vMain"), "閉じる");
+      st.text = fixed;
+    }
+    $("vMain").classList.toggle("on", tapping(lt, tMain));
+    st._finger = [{ t: tMic, el: $("tMic") }, { t: tMain, el: $("vMain") }, { t: 2.7, el: $("vMain") }];
+  }
+
+  function sFloat(lt) {
+    const tIcon = .45, tGrab = 1.3, tDrop = 2.4;
+    if (lt >= tIcon) $("tFlt").classList.add("on");
+    if (tapping(lt, tIcon)) st.on.push($("tFlt"));
+    st.fl = ease(prog(lt, tIcon + .05, tIcon + .55));
+    const p = ease(prog(lt, tGrab + .12, tDrop - .1));
+    st.dx = -8 * p; st.dy = -104 * p;
+    st._finger = [{ t: tIcon, el: $("tFlt") }, { t: tGrab, el: $("gripL"), hold: true }, { t: tDrop, el: $("gripL") }];
+  }
+
+  function sTheme(lt) {
+    // ネイビー → ブラック → ライト → 背景画像＋透過
+    const seq = [[0, "navy"], [.75, "black"], [1.45, "light"], [2.15, "img"]];
+    let i = 0; while (i < seq.length - 1 && lt >= seq[i + 1][0]) i++;
+    const names = { navy: "ネイビー", black: "ブラック", light: "ライト", img: "背景画像＋透過" };
+    st.tpill = names[seq[i][1]];
+    const nxt = seq[i + 1], cur = seq[i][1];
+    const p = nxt ? ease(prog(lt, nxt[0] - .2, nxt[0])) : 0;
+    const base = (n) => (n === "img" ? "navy" : n);
+    if (cur === "img") {
+      const q = ease(prog(lt, 2.15, 2.6));
+      theme("navy", "navy", 0, 1 - .55 * q, 1 - .38 * q);
+      $("kbimg").style.opacity = q;
+    } else if (nxt && nxt[1] === "img") {
+      theme(cur, "navy", p);
+    } else {
+      theme(base(cur), nxt ? base(nxt[1]) : base(cur), p);
+    }
+    st.text = "";
+    st._finger = [];
+  }
+
+  // ---------- 描画（時刻 t から画面を作る） ----------
+  function render(t) {
+    resetState();
+    st._finger = null;
+
+    // オープニング
+    const op = $("open").style;
+    const oIn = (a, b) => out(prog(t, a, b));
+    $("oLogo").style.transform = `scale(${.6 + .4 * oIn(0, .55)})`;
+    $("oLogo").style.opacity = oIn(0, .4);
+    $("oName").style.opacity = oIn(.3, .75); $("oName").style.transform = `translateY(${12 * (1 - oIn(.3, .75))}px)`;
+    $("oTag1").style.opacity = oIn(.65, 1.1); $("oTag1").style.transform = `translateY(${10 * (1 - oIn(.65, 1.1))}px)`;
+    $("oTag2").style.opacity = oIn(.95, 1.35);
+    const oOut = ease(prog(t, 2.0, 2.4));
+    op.opacity = t < 2.4 ? 1 - oOut : 0;
+    op.transform = `translateY(${-30 * oOut}px)`;
+
+    // スマホの出入り
+    const pIn = ease(prog(t, 2.05, 2.5)), pOut = ease(prog(t, 21.6, 21.95));
+    const ph = $("phone").style;
+    ph.opacity = t < 2.05 || t > 21.95 ? 0 : pIn * (1 - pOut);
+    ph.transform = `translateY(${40 * (1 - pIn) + 20 * pOut}px)`;
+
+    // 場面
+    let sc = null;
+    for (const s of SCENES) if (t >= s.s && t < s.e) sc = s;
+    if (sc) sc.f(t - sc.s);
+
+    // キャプション
+    const cap = $("cap").style;
+    if (sc) {
+      const lt = t - sc.s, d = sc.e - sc.s;
+      const a = out(prog(lt, 0, .35)) * (1 - prog(lt, d - .25, d));
+      setT($("capL"), sc.l); setT($("capJ"), sc.j);
+      cap.opacity = a; cap.transform = `translateY(${10 * (1 - out(prog(lt, 0, .35)))}px)`;
+      if (st._finger) finger(lt, st._finger);
+    } else cap.opacity = 0;
+
+    // エンディング
+    const eIn = out(prog(t, 21.8, 22.3)), eOut = ease(prog(t, 24.6, 25));
+    $("end").style.opacity = t >= 21.8 ? eIn * (1 - eOut) : 0;
+    $("eCard").style.transform = `scale(${.94 + .06 * eIn})`;
+    tagEls.forEach((e, i) => { const q = out(prog(t, 22.1 + i * .08, 22.4 + i * .08)); e.style.opacity = q; e.style.transform = `translateY(${8 * (1 - q)}px)`; });
+
+    apply(t);
+  }
+
+  function apply(t) {
+    // 入力欄
+    setT($("inTxt"), st.text); setT($("comp"), st.comp);
+    $("ph").style.display = st.text || st.comp ? "none" : "";
+    $("caret").style.opacity = (st.text || st.comp) ? (Math.floor(t * 2.2) % 2 ? .25 : 1) : 0;
+
+    // 入力モード（あ / A / 1）・定型文・音声
+    $("gJa").style.display = st.mode === 0 ? "" : "none";
+    $("gEn").style.display = st.mode === 1 ? "" : "none";
+    $("gNum").style.display = st.mode === 2 ? "" : "none";
+    modeSpans.forEach((s, i) => s.classList.toggle("cur", i === st.mode));
+    $("phr").style.display = st.phr ? "block" : "none";
+    for (const c of document.querySelectorAll(".kbody > .col, .center")) c.style.visibility = st.phr ? "hidden" : "visible";
+    $("phrIn").style.transform = `translateY(${-st.phrScroll}px)`;
+    $("voice").style.display = st.voice ? "flex" : "none";
+
+    // 押しているキー・フリック中の文字
+    for (const k of allKeys) { k.classList.remove("on"); if (k.dataset.lab && k.textContent !== k.dataset.lab) k.textContent = k.dataset.lab; }
+    for (const c of Object.values(PC)) c.classList.remove("on");
+    for (const e of st.on) e.classList && e.classList.add("on");
+    for (const [id, s] of Object.entries(st.label)) if (K[id]) K[id].textContent = s;
+
+    // 変換候補
+    const cd = $("cands");
+    const key = st.cands ? st.cands.join("|") + "#" + st.candOn : "";
+    if (cd.dataset.k !== key) {
+      cd.innerHTML = "";
+      (st.cands || []).forEach((s, i) => { const e = document.createElement("div"); e.className = "cand" + (i === st.candOn ? " on" : ""); e.textContent = s; cd.appendChild(e); });
+      cd.dataset.k = key;
+    }
+    const showCands = !!st.cands;
+    for (const id of ["tPhr", "tFlt", "tHand", "tMic"]) $(id).style.display = showCands ? "none" : "";
+
+    // フローティング
+    const fl = st.fl, kb = $("kb").style;
+    kb.left = kb.right = (14 * fl) + "px";
+    kb.bottom = (50 * fl) + "px";
+    kb.borderRadius = (14 * fl) + "px";
+    kb.boxShadow = fl ? `0 ${10 * fl}px ${24 * fl}px rgba(0,0,0,${.35 * fl})` : "none";
+    kb.transform = `translate(${st.dx}px,${st.dy}px)`;
+    $("grip").style.height = (17 * fl) + "px";
+    $("grip").style.opacity = fl;
+    $("inbar").style.bottom = (167 * (1 - fl)) + "px";
+
+    // 着せかえの名前・注意書き
+    const tp = $("tpill");
+    setT(tp, st.tpill); tp.style.display = st.tpill ? "" : "none";
+    $("foot").style.opacity = st.foot;
+
+    // 進み具合
+    $("barIn").style.width = (t / D * 100) + "%";
+    setT($("time"), `${t.toFixed(1)} / ${D.toFixed(1)} 秒`);
+  }
+
+  // ---------- 再生・一時停止 ----------
+  let acc = 0, last = performance.now(), paused = false;
+  const reduce = !VIDEO && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce) { paused = true; acc = 22.8; }
+  function frame(now) {
+    if (!paused) acc += (now - last) / 1000;
+    last = now;
+    render(((acc % D) + D) % D);
+    requestAnimationFrame(frame);
+  }
+  const bPlay = $("bPlay");
+  const paintBtn = () => { bPlay.textContent = paused ? "再生" : "一時停止"; };
+  paintBtn();
+  bPlay.addEventListener("click", () => { paused = !paused; last = performance.now(); paintBtn(); });
+  $("bRestart").addEventListener("click", () => { acc = 0; paused = false; last = performance.now(); paintBtn(); });
+
+  // ---------- 画面サイズに合わせる ----------
+  function fit() {
+    if (VIDEO) return;
+    const w = Math.min(document.documentElement.clientWidth - 32, 560);
+    const h = window.innerHeight - 150;
+    const s = Math.max(.4, Math.min(w / 360, h / 640, 1.7));
+    stage.style.transform = `scale(${s})`;
+    wrap.style.width = 360 * s + "px"; wrap.style.height = 640 * s + "px";
+    $("under").style.width = 360 * s + "px";
+  }
+  window.addEventListener("resize", fit);
+  fit();
+  render(reduce ? 22.8 : 0);
+  requestAnimationFrame(frame);
+})();
+</script>
