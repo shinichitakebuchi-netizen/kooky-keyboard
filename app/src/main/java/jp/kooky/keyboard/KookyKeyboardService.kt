@@ -87,6 +87,7 @@ class KookyKeyboardService : InputMethodService() {
             pr.getInt("bg_trans", 0).coerceIn(0, 90),
             pr.getInt("key_trans", 0).coerceIn(0, 90),
             pr.getLong("bg_image", 0L),
+            pr.getString("bg_crop", ""),
             pr.getBoolean("floating", false),
             pr.getInt("float_pct", 88).coerceIn(50, 100)
         ).joinToString("|")
@@ -224,7 +225,7 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     // 見た目の設定（高さ・色・透過など）が変わったら、表示中のキーボードをすぐ作り直す
-    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans", "bg_image", "float_pct")
+    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans", "bg_image", "bg_crop", "float_pct")
     private val rebuildLook = Runnable {
         if (isInputViewShown && lookKey() != builtLook) {
             stopRepeat()
@@ -269,9 +270,9 @@ class KookyKeyboardService : InputMethodService() {
             background = when {
                 anim != null -> {
                     bgAnim = anim
-                    LayerDrawable(arrayOf(CropAnimDrawable(anim), ColorDrawable(bgColor())))
+                    LayerDrawable(arrayOf(CropAnimDrawable(anim, BgImage.crop(this@KookyKeyboardService)), ColorDrawable(bgColor())))
                 }
-                img != null -> LayerDrawable(arrayOf(CropDrawable(img), ColorDrawable(bgColor())))
+                img != null -> LayerDrawable(arrayOf(CropDrawable(img, BgImage.crop(this@KookyKeyboardService)), ColorDrawable(bgColor())))
                 else -> ColorDrawable(bgColor())
             }
             startBgAnim()

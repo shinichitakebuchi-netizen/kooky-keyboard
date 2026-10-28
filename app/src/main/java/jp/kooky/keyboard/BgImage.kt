@@ -122,6 +122,7 @@ object BgImage {
 
             context.getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE).edit()
                 .putLong("bg_image", System.currentTimeMillis())
+                .putString("bg_crop", "")
                 .apply()
             true
         } catch (e: TooBig) {
@@ -131,6 +132,19 @@ object BgImage {
         } catch (e: OutOfMemoryError) {
             false
         }
+    }
+
+    // トリミング範囲（画像に対する割合 l,t,r,b）。なければ null＝中央
+    fun crop(context: Context): FloatArray? {
+        val raw = context.getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE).getString("bg_crop", "") ?: ""
+        val v = raw.split(",").mapNotNull { it.toFloatOrNull() }
+        return if (v.size == 4 && v[2] > v[0] && v[3] > v[1]) v.toFloatArray() else null
+    }
+
+    fun setCrop(context: Context, c: FloatArray?) {
+        context.getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE).edit()
+            .putString("bg_crop", c?.joinToString(",") ?: "")
+            .apply()
     }
 
     fun clear(context: Context) {
@@ -175,8 +189,36 @@ fun loadAnimatedBg(context: Context): android.graphics.drawable.AnimatedImageDra
     }
 }
 
-// 動く画像を枠いっぱいに表示（はみ出す分は切って中央を表示）。コマ送りの再描画は親に伝える
-class CropAnimDrawable(private val inner: Drawable) : Drawable(), Drawable.Callback {
+// 表示する範囲（画像の中の位置、ピクセル）を決める
+// crop（トリミングで選んだ範囲、0〜1の割合）があればその中心・大きさを使い、なければ中央を切り出す
+fun cropSrc(iw: Float, ih: Float, vw: Float, vh: Float, crop: FloatArray?): android.graphics.RectF {
+    val ratio = vw / vh
+    var cx = iw / 2
+    var cy = ih / 2
+    var rw = iw
+    var rh = ih
+    if (crop != null && crop.size == 4) {
+        rw = (crop[2] - crop[0]) * iw
+        rh = (crop[3] - crop[1]) * ih
+        cx = (crop[0] + crop[2]) / 2 * iw
+        cy = (crop[1] + crop[3]) / 2 * ih
+    }
+    var w: Float
+    var h: Float
+    if (rw / rh > ratio) {
+        h = rh; w = rh * ratio
+    } else {
+        w = rw; h = rw / ratio
+    }
+    if (w > iw) { w = iw; h = w / ratio }
+    if (h > ih) { h = ih; w = h * ratio }
+    val l = (cx - w / 2).coerceIn(0f, iw - w)
+    val t = (cy - h / 2).coerceIn(0f, ih - h)
+    return android.graphics.RectF(l, t, l + w, t + h)
+}
+
+// 動く画像を枠に合わせて表示（トリミング範囲を反映）。コマ送りの再描画は親に伝える
+class CropAnimDrawable(private val inner: Drawable, private val crop: FloatArray? = null) : Drawable(), Drawable.Callback {
 
     init {
         inner.callback = this
@@ -192,12 +234,11 @@ class CropAnimDrawable(private val inner: Drawable) : Drawable(), Drawable.Callb
             inner.bounds = bounds
             return
         }
-        val sc = maxOf(vw / iw, vh / ih)
-        val w = (iw * sc).toInt()
-        val h = (ih * sc).toInt()
-        val l = bounds.left + ((vw - w) / 2).toInt()
-        val t = bounds.top + ((vh - h) / 2).toInt()
-        inner.setBounds(l, t, l + w, t + h)
+        val src = cropSrc(iw, ih, vw, vh, crop)
+        val sc = vw / src.width()
+        val l = bounds.left - (src.left * sc)
+        val t = bounds.top - (src.top * sc)
+        inner.setBounds(l.toInt(), t.toInt(), (l + iw * sc).toInt(), (t + ih * sc).toInt())
     }
 
     override fun draw(canvas: Canvas) {
@@ -231,30 +272,20 @@ class CropAnimDrawable(private val inner: Drawable) : Drawable(), Drawable.Callb
     }
 }
 
-// 画像を枠いっぱいに、はみ出す分は上下（左右）を切って中央に表示する
+// 画像を枠に合わせて表示（トリミング範囲を反映。なければ中央）
 // 大きさの主張をしないので、キーボードの高さには影響しない
-class CropDrawable(private val bmp: Bitmap) : Drawable() {
+class CropDrawable(private val bmp: Bitmap, private val crop: FloatArray? = null) : Drawable() {
 
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
     private val src = Rect()
 
     override fun onBoundsChange(bounds: Rect) {
         super.onBoundsChange(bounds)
-        val bw = bmp.width.toFloat()
-        val bh = bmp.height.toFloat()
         val vw = bounds.width().toFloat()
         val vh = bounds.height().toFloat()
         if (vw <= 0 || vh <= 0) return
-        val viewRatio = vw / vh
-        if (bw / bh > viewRatio) {
-            val w = (bh * viewRatio).toInt()
-            val x = ((bw - w) / 2).toInt()
-            src.set(x, 0, x + w, bh.toInt())
-        } else {
-            val h = (bw / viewRatio).toInt()
-            val y = ((bh - h) / 2).toInt()
-            src.set(0, y, bw.toInt(), y + h)
-        }
+        val r = cropSrc(bmp.width.toFloat(), bmp.height.toFloat(), vw, vh, crop)
+        src.set(r.left.toInt(), r.top.toInt(), r.right.toInt(), r.bottom.toInt())
     }
 
     override fun draw(canvas: Canvas) {

@@ -260,6 +260,9 @@ class MainActivity : Activity() {
             toast("背景画像を外したよ")
         }, LinearLayout.LayoutParams(0, dp(46), 1f).apply { leftMargin = dp(4) })
         c.addView(bgRow, blockParams())
+        c.addView(button("トリミング（表示する範囲を選ぶ）", Ui.KEY) {
+            if (BgImage.has(this)) openCrop() else toast("先に画像を選んでね")
+        }, blockParams())
 
         c.addView(section("透過"))
         c.addView(sizeSlider("背景の透過率", "bg_trans", 0, 0, 90), blockParams())
@@ -545,6 +548,48 @@ class MainActivity : Activity() {
         }
     }
 
+    // トリミング画面（キーボードと同じ形の枠に合わせて、画像を動かす・拡大縮小する）
+    private fun openCrop() {
+        val bmp = BgImage.load(this) ?: run {
+            toast("画像を読み込めなかったよ")
+            return
+        }
+        val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
+        val dm = resources.displayMetrics
+        val hPct = prefs.getInt("height_pct", 100).coerceIn(70, 150)
+        // キーボードの大きさ（ツールバー38＋キー208を高さ設定で伸縮、余白8）
+        val kbH = ((38 + 208) * hPct / 100f + 8f) * dm.density
+        val ratio = dm.widthPixels / kbH
+
+        val dlg = android.app.Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Ui.BG)
+            setPadding(dp(16), dp(20), dp(16), dp(20))
+        }
+        root.addView(text("トリミング", 20f, Ui.TEXT, bold = true))
+        root.addView(text("オレンジの枠がキーボードの範囲。画像を指で動かす・2本指で拡大縮小して決めてね", 12f, Ui.SUB)
+            .apply { setPadding(0, dp(6), 0, dp(8)) })
+        val cv = CropView(this, bmp, ratio, BgImage.crop(this))
+        root.addView(cv, LinearLayout.LayoutParams(match, 0, 1f))
+
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        row.addView(button("中央に戻す", Ui.KEY) { cv.reset() },
+            LinearLayout.LayoutParams(0, dp(46), 1f).apply { rightMargin = dp(4) })
+        row.addView(button("キャンセル", Ui.KEY) { dlg.dismiss() },
+            LinearLayout.LayoutParams(0, dp(46), 1f).apply { leftMargin = dp(4); rightMargin = dp(4) })
+        row.addView(button("決定", Ui.ORANGE) {
+            BgImage.setCrop(this, cv.result())
+            toast("表示する範囲を決めたよ")
+            dlg.dismiss()
+        }, LinearLayout.LayoutParams(0, dp(46), 1f).apply { leftMargin = dp(4) })
+        root.addView(row, LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(12) })
+
+        dlg.setContentView(root)
+        dlg.setOnDismissListener { bmp.recycle() }
+        dlg.show()
+    }
+
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
@@ -568,8 +613,9 @@ class MainActivity : Activity() {
                     // 透過率が0だと画像が見えないので、最初は半分くらい見えるようにする
                     val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
                     if (prefs.getInt("bg_trans", 0) < 30) prefs.edit().putInt("bg_trans", 50).apply()
-                    toast("背景画像を設定したよ")
+                    toast("表示する範囲を決めてね")
                     if (page == "look") showPage("look") else bgStatusRefresh?.invoke()
+                    openCrop()
                 } else {
                     toast("画像を読み込めなかったよ")
                 }
