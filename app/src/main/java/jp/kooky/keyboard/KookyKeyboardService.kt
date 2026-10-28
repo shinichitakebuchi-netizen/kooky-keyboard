@@ -840,6 +840,7 @@ class KookyKeyboardService : InputMethodService() {
 
     // 定型文パネルの開閉（開くときは入力中の文字を確定してから）
     private fun togglePhrases() {
+        closeBrackets()
         if (tab == TAB_PHRASE) {
             backToKeyboard()
             return
@@ -905,12 +906,20 @@ class KookyKeyboardService : InputMethodService() {
         chars: Array<String>,
         labelFn: () -> String,
         show: (String) -> String = { it },
+        onLong: (() -> Unit)? = null,
         onInput: (String, Boolean) -> Unit
     ): TextView {
         val first = labelFn()
         val k = key(first, pal.key).apply { textSize = if (first.length > 1) 14f else 20f }
         var x0 = 0f
         var y0 = 0f
+        var longFired = false
+        val longRun = Runnable {
+            longFired = true
+            k.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            k.text = labelFn()
+            onLong?.invoke()
+        }
         val th = dp(18).toFloat()
         fun dir(x: Float, y: Float): Int {
             val dx = x - x0
@@ -928,23 +937,30 @@ class KookyKeyboardService : InputMethodService() {
                 MotionEvent.ACTION_DOWN -> {
                     x0 = e.x
                     y0 = e.y
+                    longFired = false
                     v.isPressed = true
                     v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    if (onLong != null) handler.postDelayed(longRun, 450)
                 }
                 MotionEvent.ACTION_MOVE -> {
+                    if (longFired) return@setOnTouchListener true
                     // フリック中は入る文字をキーに表示
                     val d = dir(e.x, e.y)
+                    if (d != 0) handler.removeCallbacks(longRun)
                     val c = chars[d]
                     tv.text = if (d == 0 || c.isEmpty()) labelFn() else show(c)
                 }
                 MotionEvent.ACTION_UP -> {
+                    handler.removeCallbacks(longRun)
                     v.isPressed = false
                     tv.text = labelFn()
+                    if (longFired) return@setOnTouchListener true
                     val d = dir(e.x, e.y)
                     val c = chars[d]
                     if (c.isNotEmpty()) onInput(c, d == 0)
                 }
                 MotionEvent.ACTION_CANCEL -> {
+                    handler.removeCallbacks(longRun)
                     v.isPressed = false
                     tv.text = labelFn()
                 }
@@ -969,7 +985,12 @@ class KookyKeyboardService : InputMethodService() {
         )
         for (r in rows) {
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            for (chars in r) row.addView(jaKey(chars, chars[0]), gridKeyParams())
+            for (chars in r) {
+                val k = if (chars === Kana.YA) {
+                    flickKey(chars, { chars[0] }, onLong = { openBrackets() }) { s, isTap -> inputKana(s, isTap, chars) }
+                } else jaKey(chars, chars[0])
+                row.addView(k, gridKeyParams())
+            }
             grid.addView(row, LinearLayout.LayoutParams(match, 0, 1f))
         }
         val last = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -1076,19 +1097,85 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     private fun clearComposingState() {
+        bracketOpen = false
         composing.clear()
         cands = emptyList()
         sel = -1
         resetToggle()
     }
 
+    // ---------- 括弧の一覧（「や」キーの長押し） ----------
+    private val BRACKETS = listOf(
+        "「" to "」", "『" to "』", "（" to "）", "【" to "】", "〈" to "〉", "《" to "》",
+        "〔" to "〕", "［" to "］", "｛" to "｝", "“" to "”", "‘" to "’",
+        "(" to ")", "[" to "]", "{" to "}", "<" to ">"
+    )
+    private var bracketOpen = false
+
+    private fun openBrackets() {
+        commitAll()
+        resetToggle()
+        bracketOpen = true
+        refreshCandBar()
+        candScroll?.scrollTo(0, 0)
+    }
+
+    private fun closeBrackets() {
+        if (!bracketOpen) return
+        bracketOpen = false
+        refreshCandBar()
+    }
+
+    // 左右セットで入れて、カーソルを括弧の間に置く
+    private fun insertBracket(open: String, close: String) {
+        val ic = currentInputConnection ?: return
+        ic.beginBatchEdit()
+        ic.commitText(open, 1)
+        ic.commitText(close, 0)
+        ic.endBatchEdit()
+        lastCommit = ""
+        lastReading = null
+        closeBrackets()
+    }
+
+    private fun showBracketBar(row: LinearLayout) {
+        row.addView(TextView(this).apply {
+            text = "×"
+            textSize = 16f
+            gravity = Gravity.CENTER
+            setPadding(dp(12), 0, dp(12), 0)
+            setTextColor(pal.sub)
+            background = press(pal.card, dp(4).toFloat())
+            setOnClickListener {
+                it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                closeBrackets()
+            }
+        }, LinearLayout.LayoutParams(wrap, match).apply { rightMargin = dp(4) })
+        for ((o, c) in BRACKETS) {
+            row.addView(TextView(this).apply {
+                text = o + c
+                textSize = 16f
+                gravity = Gravity.CENTER
+                setPadding(dp(10), 0, dp(10), 0)
+                setTextColor(pal.text)
+                background = press(pal.card, dp(4).toFloat())
+                setOnClickListener {
+                    it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    insertBracket(o, c)
+                }
+            }, LinearLayout.LayoutParams(wrap, match).apply { rightMargin = dp(4) })
+        }
+    }
+
     private fun refreshCandBar() {
         val cs = candScroll ?: return
         val row = candRow ?: return
         val active = composing.isNotEmpty()
-        cs.visibility = if (active) View.VISIBLE else View.GONE
-        tabScroll?.visibility = if (active) View.GONE else View.VISIBLE
-        for (v in topIcons) v.visibility = if (active) View.GONE else View.VISIBLE
+        if (active) bracketOpen = false
+        val barShown = active || bracketOpen
+        cs.visibility = if (barShown) View.VISIBLE else View.GONE
+        tabScroll?.visibility = if (barShown) View.GONE else View.VISIBLE
+        for (v in topIcons) v.visibility = if (barShown) View.GONE else View.VISIBLE
 
         spaceKey?.apply {
             text = if (active) "変換" else ""
@@ -1104,6 +1191,10 @@ class KookyKeyboardService : InputMethodService() {
         }
 
         row.removeAllViews()
+        if (bracketOpen) {
+            showBracketBar(row)
+            return
+        }
         if (!active) return
         if (!dict.ready && cands.size <= 2) {
             row.addView(TextView(this).apply {
@@ -1230,6 +1321,7 @@ class KookyKeyboardService : InputMethodService() {
 
     // 英語・数字：変換なしでそのまま入力
     private fun inputDirect(s: String, isTap: Boolean, chars: Array<String>, caseAware: Boolean) {
+        closeBrackets()
         val ic = currentInputConnection ?: return
         val now = SystemClock.uptimeMillis()
         val opts = chars.filter { it.isNotEmpty() }
@@ -1258,6 +1350,7 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     private fun switchMode() {
+        closeBrackets()
         commitAll()
         resetToggle()
         tab = if (tab >= TAB_PHRASE) inputMode else (tab + 1) % TAB_PHRASE
