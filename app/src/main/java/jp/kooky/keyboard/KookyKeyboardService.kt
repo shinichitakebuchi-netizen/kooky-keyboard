@@ -367,6 +367,20 @@ class KookyKeyboardService : InputMethodService() {
         area.addView(ng, FrameLayout.LayoutParams(match, match))
         numGrid = ng
 
+        // 定型文パネル（中央の文字キーの場所に出す。左右の列 ↶◀@あA1 / ⌫▶␣↵ はそのまま使える）
+        val scroll = ScrollView(this).apply {
+            isVerticalScrollBarEnabled = false
+            visibility = View.GONE
+        }
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(1), 0, dp(1), dp(6))
+        }
+        scroll.addView(box)
+        area.addView(scroll, FrameLayout.LayoutParams(match, match))
+        listBox = box
+        listScroll = scroll
+
         // 音声入力中に上にかぶせるパネル
         area.addView(buildVoicePanel(), FrameLayout.LayoutParams(match, match))
 
@@ -374,20 +388,6 @@ class KookyKeyboardService : InputMethodService() {
         body.addView(rightColumn(), LinearLayout.LayoutParams(0, match, 1f))
         bodyFrame.addView(body, FrameLayout.LayoutParams(match, match))
         keysRow = body
-
-        // 定型文パネル（開いている間はキーを隠す）
-        val scroll = ScrollView(this).apply {
-            isVerticalScrollBarEnabled = false
-            visibility = View.GONE
-        }
-        val box = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(2), 0, dp(2), dp(6))
-        }
-        scroll.addView(box)
-        bodyFrame.addView(scroll, FrameLayout.LayoutParams(match, match))
-        listBox = box
-        listScroll = scroll
 
         p.addView(bodyFrame, LinearLayout.LayoutParams(match, sz(208)).apply { topMargin = dp(2) })
 
@@ -794,7 +794,7 @@ class KookyKeyboardService : InputMethodService() {
         updateModeKey()
 
         val phrasesOpen = tab == TAB_PHRASE
-        keysRow?.visibility = if (phrasesOpen) View.INVISIBLE else View.VISIBLE
+        keysRow?.visibility = View.VISIBLE
         listScroll?.visibility = if (phrasesOpen) View.VISIBLE else View.GONE
         jaGrid?.visibility = if (tab == TAB_JA) View.VISIBLE else View.GONE
         enGrid?.visibility = if (tab == TAB_EN) View.VISIBLE else View.GONE
