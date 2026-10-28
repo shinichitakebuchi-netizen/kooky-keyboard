@@ -271,6 +271,9 @@ class MainActivity : Activity() {
         c.addView(section("サイズ"))
         c.addView(sizeSlider("高さ", "height_pct", 100, 70, 150), blockParams())
         c.addView(sizeSlider("片手モードの幅", "onehand_pct", 78, 55, 95), blockParams())
+        c.addView(sizeSlider("フローティングの幅", "float_pct", 88, 50, 100), blockParams())
+        c.addView(text("フローティングはキーボードのツールバーの「浮いた窓」アイコンでオン・オフ。上の二本線をドラッグで移動できるよ", 11f, Ui.SUB)
+            .apply { setPadding(0, dp(6), 0, 0) })
 
         // 確認用の背景：キーボードはこの上に重なる
         frame.addView(previewBackdrop(), LinearLayout.LayoutParams(match, dp(320)))

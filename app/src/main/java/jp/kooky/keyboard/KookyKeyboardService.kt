@@ -86,7 +86,9 @@ class KookyKeyboardService : InputMethodService() {
             pr.getString("theme", "navy"),
             pr.getInt("bg_trans", 0).coerceIn(0, 90),
             pr.getInt("key_trans", 0).coerceIn(0, 90),
-            pr.getLong("bg_image", 0L)
+            pr.getLong("bg_image", 0L),
+            pr.getBoolean("floating", false),
+            pr.getInt("float_pct", 88).coerceIn(50, 100)
         ).joinToString("|")
     }
 
@@ -146,6 +148,11 @@ class KookyKeyboardService : InputMethodService() {
 
     // 片手モード 0=通常 1=右寄せ 2=左寄せ
     private var oneHand = 0
+
+    // フローティングモード（キーボードを画面に浮かせて、指で動かせる）
+    private var floating = false
+    private var floatPanel: View? = null
+    private var floatArea: View? = null
 
     // ---------- 日本語入力の状態 ----------
     private val composing = StringBuilder()
@@ -217,7 +224,7 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     // 見た目の設定（高さ・色・透過など）が変わったら、表示中のキーボードをすぐ作り直す
-    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans", "bg_image")
+    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans", "bg_image", "float_pct")
     private val rebuildLook = Runnable {
         if (isInputViewShown && lookKey() != builtLook) {
             stopRepeat()
@@ -237,6 +244,9 @@ class KookyKeyboardService : InputMethodService() {
         stopRepeat()
         categories = store.load()
         oneHand = prefs().getInt("one_hand", 0)
+        floating = prefs().getBoolean("floating", false)
+        floatPanel = null
+        floatArea = null
         heightPct = prefs().getInt("height_pct", 100).coerceIn(70, 150)
         oneHandPct = prefs().getInt("onehand_pct", 78).coerceIn(55, 95)
         pal = Themes.of(prefs().getString("theme", "navy"))
@@ -319,10 +329,16 @@ class KookyKeyboardService : InputMethodService() {
         topIcons.add(phr)
         phraseBtn = phr
 
-        // 片手モードの切り替え（通常 ⇔ 右寄せ）
+        // フローティングのオン・オフ
+        val flt = toolKey(R.drawable.ic_kb_float) { setFloating(!floating) }
+        if (floating) flt.background = iconBg(pal.accent, dp(8).toFloat(), R.drawable.ic_kb_float, pal.onAccent)
+        top.addView(flt, LinearLayout.LayoutParams(dp(40), match).apply { leftMargin = dp(4) })
+        topIcons.add(flt)
+
+        // 片手モードの切り替え（通常 ⇔ 右寄せ）。フローティング中は使わない
         val hand = toolKey(R.drawable.ic_kb_hand) { setOneHand(if (oneHand == 0) 1 else 0) }
-        top.addView(hand, LinearLayout.LayoutParams(dp(44), match).apply { leftMargin = dp(4) })
-        topIcons.add(hand)
+        top.addView(hand, LinearLayout.LayoutParams(dp(40), match).apply { leftMargin = dp(4) })
+        if (!floating) topIcons.add(hand) else hand.visibility = View.GONE
 
         // 🎤 音声入力 → AIでビジネス敬語に添削 → 自動で入力
         val mic = toolKey(R.drawable.ic_kb_mic) { startVoice() }
@@ -378,7 +394,130 @@ class KookyKeyboardService : InputMethodService() {
         render()
         refreshCandBar()
         updateCaseLabels()
-        return root
+        return if (floating) buildFloating(root) else root
+    }
+
+    // ---------- フローティングモード ----------
+
+    private fun setFloating(on: Boolean) {
+        stopRepeat()
+        cancelVoice()
+        commitAll()
+        prefs().edit().putBoolean("floating", on).apply()
+        builtLook = lookKey()
+        setInputView(onCreateInputView())
+    }
+
+    // 画面いっぱいの透明な枠の中に、キーボードを浮かせて置く
+    // 上のつまみ（二本線）をドラッグで移動、オレンジのボタンで通常のキーボードに戻す
+    private fun buildFloating(inner: LinearLayout): View {
+        val dm = resources.displayMetrics
+        val screenW = dm.widthPixels
+        val screenH = dm.heightPixels
+        val panelW = (screenW * prefs().getInt("float_pct", 88).coerceIn(50, 100) / 100f).toInt()
+
+        // 中身の背景（色・画像）をパネル全体に移して、角を丸める
+        val bg = inner.background
+        inner.background = null
+        leftStrip?.visibility = View.GONE
+        rightStrip?.visibility = View.GONE
+
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = bg
+            elevation = dp(10).toFloat()
+            clipToOutline = true
+            outlineProvider = object : android.view.ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: android.graphics.Outline) {
+                    outline.setRoundRect(0, 0, view.width, view.height, dp(16).toFloat())
+                }
+            }
+        }
+
+        // つまみの段：[ 移動のつまみ ][ 通常に戻す ]
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(8), dp(4), dp(6), 0)
+        }
+        val grip = TextView(this).apply {
+            background = iconBg(Color.TRANSPARENT, dp(8).toFloat(), R.drawable.ic_kb_drag, pal.sub, 26)
+            contentDescription = "ドラッグで移動"
+        }
+        bar.addView(grip, LinearLayout.LayoutParams(0, dp(26), 1f))
+        val dock = TextView(this).apply {
+            background = iconBg(pal.accent, dp(13).toFloat(), R.drawable.ic_kb_expand, pal.onAccent, 18)
+            contentDescription = "通常のキーボードに戻す"
+            setOnClickListener {
+                it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                setFloating(false)
+            }
+        }
+        bar.addView(dock, LinearLayout.LayoutParams(dp(40), dp(26)))
+        panel.addView(bar, LinearLayout.LayoutParams(match, wrap))
+        panel.addView(inner, LinearLayout.LayoutParams(match, wrap))
+
+        val area = FrameLayout(this)
+        val lp = FrameLayout.LayoutParams(panelW, wrap).apply {
+            gravity = Gravity.BOTTOM or Gravity.START
+            leftMargin = prefs().getInt("float_left", (screenW - panelW) / 2).coerceIn(0, maxOf(0, screenW - panelW))
+            bottomMargin = prefs().getInt("float_bottom", dp(24)).coerceIn(0, maxOf(0, screenH - dp(120)))
+        }
+        area.addView(panel, lp)
+
+        // つまみをドラッグして移動（画面からはみ出さないように）
+        var downX = 0f
+        var downY = 0f
+        var startLeft = 0
+        var startBottom = 0
+        grip.setOnTouchListener { _, e ->
+            val plp = panel.layoutParams as FrameLayout.LayoutParams
+            when (e.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    downX = e.rawX
+                    downY = e.rawY
+                    startLeft = plp.leftMargin
+                    startBottom = plp.bottomMargin
+                    panel.animate().scaleX(1.02f).scaleY(1.02f).setDuration(100).start()
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val maxLeft = maxOf(0, area.width - panel.width)
+                    val maxBottom = maxOf(0, area.height - panel.height)
+                    plp.leftMargin = (startLeft + (e.rawX - downX)).toInt().coerceIn(0, maxLeft)
+                    plp.bottomMargin = (startBottom - (e.rawY - downY)).toInt().coerceIn(0, maxBottom)
+                    panel.layoutParams = plp
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    panel.animate().scaleX(1f).scaleY(1f).setDuration(100).start()
+                    prefs().edit()
+                        .putInt("float_left", plp.leftMargin)
+                        .putInt("float_bottom", plp.bottomMargin)
+                        .apply()
+                }
+            }
+            true
+        }
+
+        floatPanel = panel
+        floatArea = area
+        val wrapper = FrameLayout(this)
+        wrapper.addView(area, FrameLayout.LayoutParams(match, screenH))
+        return wrapper
+    }
+
+    // フローティング中：アプリの画面は縮めず、キーボードの部分だけタッチを受け取る
+    override fun onComputeInsets(outInsets: InputMethodService.Insets) {
+        super.onComputeInsets(outInsets)
+        val panel = floatPanel ?: return
+        if (!floating || !panel.isShown) return
+        val decor = window?.window?.decorView ?: return
+        val h = decor.height
+        outInsets.contentTopInsets = h
+        outInsets.visibleTopInsets = h
+        val loc = IntArray(2)
+        panel.getLocationInWindow(loc)
+        outInsets.touchableInsets = InputMethodService.Insets.TOUCHABLE_INSETS_REGION
+        outInsets.touchableRegion.set(loc[0], loc[1], loc[0] + panel.width, loc[1] + panel.height)
     }
 
     // 高さ設定を反映したサイズ
@@ -487,8 +626,8 @@ class KookyKeyboardService : InputMethodService() {
 
     // 0=通常 1=右寄せ（左に操作パネル） 2=左寄せ（右に操作パネル）
     private fun applyOneHand() {
-        leftStrip?.visibility = if (oneHand == 1) View.VISIBLE else View.GONE
-        rightStrip?.visibility = if (oneHand == 2) View.VISIBLE else View.GONE
+        leftStrip?.visibility = if (!floating && oneHand == 1) View.VISIBLE else View.GONE
+        rightStrip?.visibility = if (!floating && oneHand == 2) View.VISIBLE else View.GONE
     }
 
     // 片手モードの空いた側：⤢ 全幅に戻す ／ ‹ › 反対側へ寄せる
