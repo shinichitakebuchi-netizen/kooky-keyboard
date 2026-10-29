@@ -401,14 +401,17 @@ class KookyKeyboardService : InputMethodService() {
         // ナビゲーションバーを透明にするときは、キーボードの背景をバーの裏まで伸ばす
         // （キーはバーの上に収まるように、バーの高さぶん下に余白を足す）
         if (navClear()) {
+            // Androidからバーの高さが届かない端末があるので、端末に登録されている高さも見て大きい方を使う
+            val fallback = navBarHeight()
+            root.setPadding(root.paddingLeft, root.paddingTop, root.paddingRight, fallback)
             root.setOnApplyWindowInsetsListener { v, insets ->
-                val bottom = if (Build.VERSION.SDK_INT >= 30) {
+                val got = if (Build.VERSION.SDK_INT >= 30) {
                     insets.getInsets(android.view.WindowInsets.Type.navigationBars()).bottom
                 } else {
                     @Suppress("DEPRECATION")
                     insets.systemWindowInsetBottom
                 }
-                v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, bottom)
+                v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, maxOf(got, fallback))
                 insets
             }
         }
@@ -418,6 +421,16 @@ class KookyKeyboardService : InputMethodService() {
     // ---------- ナビゲーションバー（画面下の ⌨ ∨ のバー）の色 ----------
     // キーボードの背景色に合わせて一体に見せる。ライト配色のときはボタンを濃い色に
     // フローティング中は後ろのアプリが見えるように透明にする
+    // 端末に登録されているナビゲーションバーの高さ（キーボード表示中の ⌨ ∨ のバー）
+    private fun navBarHeight(): Int {
+        var h = 0
+        for (name in listOf("navigation_bar_frame_height", "navigation_bar_height")) {
+            val id = resources.getIdentifier(name, "dimen", "android")
+            if (id != 0) h = maxOf(h, resources.getDimensionPixelSize(id))
+        }
+        return if (h > 0) h else dp(48)
+    }
+
     private fun navClear() = !floating && prefs().getString("nav_mode", "color") == "clear"
 
     private fun applyNavBarColor() {
