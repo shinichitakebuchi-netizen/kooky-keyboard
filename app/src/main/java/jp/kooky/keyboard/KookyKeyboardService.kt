@@ -256,6 +256,7 @@ class KookyKeyboardService : InputMethodService() {
         builtLook = lookKey()
         // 透過したときに後ろが見えるよう、キーボードの窓自体の背景を消す
         window?.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        applyNavBarColor()
         enLabelKeys.clear()
         enterKeys.clear()
         topIcons.clear()
@@ -396,6 +397,30 @@ class KookyKeyboardService : InputMethodService() {
         refreshCandBar()
         updateCaseLabels()
         return if (floating) buildFloating(root) else root
+    }
+
+    // ---------- ナビゲーションバー（画面下の ⌨ ∨ のバー）の色 ----------
+    // キーボードの背景色に合わせて一体に見せる。ライト配色のときはボタンを濃い色に
+    // フローティング中は後ろのアプリが見えるように透明にする
+    private fun applyNavBarColor() {
+        val w = window?.window ?: return
+        try {
+            w.addFlags(android.view.WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+            w.navigationBarColor = if (floating) Color.TRANSPARENT else (0xFF shl 24) or (pal.bg and 0x00FFFFFF)
+            if (Build.VERSION.SDK_INT >= 29) w.isNavigationBarContrastEnforced = false
+            val light = !floating && pal === Themes.LIGHT
+            if (Build.VERSION.SDK_INT >= 30) {
+                val flag = android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+                w.insetsController?.setSystemBarsAppearance(if (light) flag else 0, flag)
+            } else {
+                @Suppress("DEPRECATION")
+                val v = w.decorView.systemUiVisibility
+                @Suppress("DEPRECATION")
+                w.decorView.systemUiVisibility = if (light) v or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+                else v and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+            }
+        } catch (e: Exception) {
+        }
     }
 
     // ---------- フローティングモード ----------
