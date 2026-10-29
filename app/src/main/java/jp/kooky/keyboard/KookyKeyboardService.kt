@@ -89,7 +89,8 @@ class KookyKeyboardService : InputMethodService() {
             pr.getLong("bg_image", 0L),
             pr.getString("bg_crop", ""),
             pr.getBoolean("floating", false),
-            pr.getInt("float_pct", 88).coerceIn(50, 100)
+            pr.getInt("float_pct", 88).coerceIn(50, 100),
+            pr.getString("nav_mode", "color")
         ).joinToString("|")
     }
 
@@ -225,7 +226,7 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     // 見た目の設定（高さ・色・透過など）が変わったら、表示中のキーボードをすぐ作り直す
-    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans", "bg_image", "bg_crop", "float_pct")
+    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans", "bg_image", "bg_crop", "float_pct", "nav_mode")
     private val rebuildLook = Runnable {
         if (isInputViewShown && lookKey() != builtLook) {
             stopRepeat()
@@ -396,17 +397,46 @@ class KookyKeyboardService : InputMethodService() {
         render()
         refreshCandBar()
         updateCaseLabels()
-        return if (floating) buildFloating(root) else root
+        if (floating) return buildFloating(root)
+        // ナビゲーションバーを透明にするときは、キーボードの背景をバーの裏まで伸ばす
+        // （キーはバーの上に収まるように、バーの高さぶん下に余白を足す）
+        if (navClear()) {
+            root.setOnApplyWindowInsetsListener { v, insets ->
+                val bottom = if (Build.VERSION.SDK_INT >= 30) {
+                    insets.getInsets(android.view.WindowInsets.Type.navigationBars()).bottom
+                } else {
+                    @Suppress("DEPRECATION")
+                    insets.systemWindowInsetBottom
+                }
+                v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, bottom)
+                insets
+            }
+        }
+        return root
     }
 
     // ---------- ナビゲーションバー（画面下の ⌨ ∨ のバー）の色 ----------
     // キーボードの背景色に合わせて一体に見せる。ライト配色のときはボタンを濃い色に
     // フローティング中は後ろのアプリが見えるように透明にする
+    private fun navClear() = !floating && prefs().getString("nav_mode", "color") == "clear"
+
     private fun applyNavBarColor() {
         val w = window?.window ?: return
         try {
             w.addFlags(android.view.WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
-            w.navigationBarColor = if (floating) Color.TRANSPARENT else (0xFF shl 24) or (pal.bg and 0x00FFFFFF)
+            val clear = navClear()
+            // 透明のときは、キーボードの窓をバーの裏まで広げる
+            if (Build.VERSION.SDK_INT >= 30) {
+                w.setDecorFitsSystemWindows(!clear)
+            } else {
+                @Suppress("DEPRECATION")
+                val f = View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                @Suppress("DEPRECATION")
+                val v = w.decorView.systemUiVisibility
+                @Suppress("DEPRECATION")
+                w.decorView.systemUiVisibility = if (clear) v or f else v and f.inv()
+            }
+            w.navigationBarColor = if (floating || clear) Color.TRANSPARENT else (0xFF shl 24) or (pal.bg and 0x00FFFFFF)
             if (Build.VERSION.SDK_INT >= 29) w.isNavigationBarContrastEnforced = false
             val light = !floating && pal === Themes.LIGHT
             if (Build.VERSION.SDK_INT >= 30) {

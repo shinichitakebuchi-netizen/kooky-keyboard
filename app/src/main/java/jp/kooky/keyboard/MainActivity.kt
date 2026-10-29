@@ -271,6 +271,11 @@ class MainActivity : Activity() {
         c.addView(section("色"))
         c.addView(themePicker(), blockParams())
 
+        c.addView(section("ナビゲーションバー（画面下の ⌨ ∨ のバー）"))
+        c.addView(navPicker(), blockParams())
+        c.addView(text("「透明」はキーボードの背景（色・画像）をバーの裏まで伸ばすよ。端末によっては効かないことがあるので、そのときは「キーボードと同じ色」に戻してね", 11f, Ui.SUB)
+            .apply { setPadding(0, dp(6), 0, 0) })
+
         c.addView(section("サイズ"))
         c.addView(sizeSlider("高さ", "height_pct", 100, 70, 150), blockParams())
         c.addView(sizeSlider("片手モードの幅", "onehand_pct", 78, 55, 95), blockParams())
@@ -1030,6 +1035,38 @@ class MainActivity : Activity() {
     }
 
     private fun blockParams() = LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(8) }
+
+    // ナビゲーションバーの見え方（キーボードと同じ色 / 透明）
+    private fun navPicker(): View {
+        val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val opts = listOf("color" to "キーボードと同じ色", "clear" to "透明")
+        val btns = ArrayList<Pair<TextView, String>>()
+        fun paint() {
+            val now = prefs.getString("nav_mode", "color")
+            for ((tv, key) in btns) {
+                val on = key == now
+                tv.setTextColor(if (on) Ui.BG else Ui.TEXT)
+                tv.background = Ui.pressable(if (on) Ui.ORANGE else Ui.KEY, dp(10).toFloat())
+            }
+        }
+        opts.forEachIndexed { i, (key, label) ->
+            val tv = TextView(this).apply {
+                text = label
+                textSize = 14f
+                gravity = Gravity.CENTER
+                typeface = Typeface.DEFAULT_BOLD
+                setOnClickListener {
+                    prefs.edit().putString("nav_mode", key).apply()
+                    paint()
+                }
+            }
+            btns.add(tv to key)
+            row.addView(tv, LinearLayout.LayoutParams(0, dp(46), 1f).apply { if (i > 0) leftMargin = dp(6) })
+        }
+        paint()
+        return row
+    }
 
     // 配色の選択（ネイビー / ブラック / ライト）。各ボタンはその配色の見本になっている
     private fun themePicker(): View {
