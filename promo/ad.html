@@ -126,11 +126,11 @@ body {
 .mode { font-size: 8px; white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 2px; }
 .mode span { color: var(--ksub); }
 .mode span.cur { color: var(--orange); font-size: 11px; font-weight: 700; }
-.phr { position: absolute; inset: 0; overflow: hidden; padding: 0 2px; display: none; }
+.phr { position: absolute; top: 0; bottom: 0; left: 20%; right: 20%; overflow: hidden; padding: 0 1.5px; display: none; }
 .phrIn { will-change: transform; }
 .hd { color: var(--orange); font: 700 9px var(--ja); margin: 4px 2px 3px; }
 .pg { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
-.pc { background: var(--kkey); border-radius: 6px; padding: 4px 6px; height: 30px; box-sizing: border-box; overflow: hidden; position: relative; }
+.pc { background: var(--kkey); border-radius: 6px; padding: 4px 5px; height: 30px; box-sizing: border-box; overflow: hidden; position: relative; }
 .pc b { display: block; font: 700 9.5px var(--ja); color: var(--ktext); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pc span { display: block; font-size: 7.5px; color: var(--ksub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
 .pc.on::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: rgba(242,140,40,.4); }
@@ -190,7 +190,7 @@ body {
   </defs>
 </svg>
 
-<div id="wrap" role="img" aria-label="Kooky Keyboardの広告アニメーション。定型文、フリック入力と文章変換、英語・数字の切り替え、音声入力のAI添削、フローティング、着せかえを順に紹介する約25秒のループ">
+<div id="wrap" role="img" aria-label="Kooky Keyboardの広告アニメーション。定型文、フリック入力と文章変換、括弧の一覧、英語・数字の切り替え、音声入力のAI添削、フローティング、着せかえを順に紹介する約26秒のループ">
   <div id="stage">
     <div id="cap"><div id="capL"></div><div id="capJ"></div></div>
 
@@ -206,7 +206,7 @@ body {
           <div class="bub">ありがとうございます</div>
         </div>
         <div id="tpill"></div>
-        <div class="inbar" id="inbar"><div class="field"><span id="inTxt"></span><span id="comp"></span><i class="caret" id="caret"></i><span class="ph" id="ph">メッセージを入力</span></div></div>
+        <div class="inbar" id="inbar"><div class="field"><span id="inTxt"></span><span id="comp"></span><i class="caret" id="caret"></i><span id="inAfter"></span><span class="ph" id="ph">メッセージを入力</span></div></div>
 
         <div id="kb">
           <div class="kbimg" id="kbimg"></div>
@@ -280,13 +280,13 @@ body {
     <button id="bRestart" type="button">最初から再生</button>
   </div>
   <div id="bar"><div id="barIn"></div></div>
-  <div id="time">0.0 / 25.0 秒</div>
+  <div id="time">0.0 / 26.0 秒</div>
 </div>
 
 <script>
 (() => {
   const VIDEO = window.VIDEO_MODE === true;
-  const D = 25.0;
+  const D = 26.0;
   const $ = (id) => document.getElementById(id);
   const stage = $("stage"), wrap = $("wrap");
 
@@ -339,7 +339,7 @@ body {
   }
 
   // ---------- エンディングの機能タグ（今アプリに入っている機能だけ） ----------
-  const TAGS = ["定型文パネル","文章ごと変換","英語・数字フリック","音声入力＋AI添削","フローティング","着せかえ・背景画像","単語登録","片手モード"];
+  const TAGS = ["定型文パネル","文章ごと変換","括弧の一覧","英語・数字フリック","音声入力＋AI添削","フローティング","着せかえ・背景画像","単語登録","片手モード"];
   const tagEls = TAGS.map((s) => { const e = document.createElement("span"); e.textContent = s; $("eTags").appendChild(e); return e; });
 
   // ---------- 配色（アプリの Themes と同じ値） ----------
@@ -405,17 +405,18 @@ body {
 
   // ---------- 各場面 ----------
   const SCENES = [
-    { s: 2.4,  e: 5.6,  l: "TEMPLATE", j: "よく使う文は、ワンタップ。", f: sTemplate },
-    { s: 5.6,  e: 8.8,  l: "FLICK",    j: "フリックで、文章ごと変換。", f: sFlick },
-    { s: 8.8,  e: 12.0, l: "ENGLISH",  j: "英語も数字も、キーひとつで。", f: sEnglish },
-    { s: 12.0, e: 15.2, l: "VOICE",    j: "話すだけで、ビジネス敬語に。", f: sVoice },
-    { s: 15.2, e: 18.4, l: "FLOAT",    j: "どこにでも置ける、フローティング。", f: sFloat },
-    { s: 18.4, e: 21.6, l: "THEME",    j: "色も背景も、自分好みに。", f: sTheme }
+    { s: 2.2,  e: 5.2,  l: "TEMPLATE", j: "よく使う文は、ワンタップ。", f: sTemplate },
+    { s: 5.2,  e: 8.2,  l: "FLICK",    j: "フリックで、文章ごと変換。", f: sFlick },
+    { s: 8.2,  e: 11.2, l: "BRACKET",  j: "括弧は、長押しでまとめて。", f: sBracket },
+    { s: 11.2, e: 14.2, l: "ENGLISH",  j: "英語も数字も、キーひとつで。", f: sEnglish },
+    { s: 14.2, e: 17.2, l: "VOICE",    j: "話すだけで、ビジネス敬語に。", f: sVoice },
+    { s: 17.2, e: 20.2, l: "FLOAT",    j: "どこにでも置ける、フローティング。", f: sFloat },
+    { s: 20.2, e: 23.2, l: "THEME",    j: "色も背景も、自分好みに。", f: sTheme }
   ];
 
   let st;
   function resetState() {
-    st = { text: "", comp: "", mode: 0, phr: false, phrScroll: 0, voice: false, cands: null, candOn: -1, on: [], label: {}, fl: 0, dx: 0, dy: 0, inbarDrop: 0, tpill: "", foot: 0 };
+    st = { text: "", after: "", comp: "", mode: 0, phr: false, phrScroll: 0, voice: false, cands: null, candOn: -1, on: [], label: {}, fl: 0, dx: 0, dy: 0, inbarDrop: 0, tpill: "", foot: 0 };
     theme("navy", "navy", 0);
     $("kbimg").style.opacity = 0;
     for (const id of ["tGear", "tPhr", "tFlt", "tHand", "tMic"]) $(id).classList.remove("on");
@@ -457,6 +458,20 @@ body {
     pts.push({ t: tCand, el: { getBoundingClientRect: () => candEl().getBoundingClientRect() } });
     pts.push({ t: 2.9, el: { getBoundingClientRect: () => $("inTxt").getBoundingClientRect() } });
     st._finger = pts;
+  }
+
+  const BR = ["×", "「」", "『』", "（）", "【】", "〈〉", "《》", "〔〕"];
+  function sBracket(lt) {
+    const tDown = .45, tLong = 1.0, tTap = 1.75;
+    const ya = K["gJa:ya"];
+    if (lt >= tDown && lt < tLong + .1) st.on.push(ya);
+    if (lt >= tLong && lt < tTap + .18) {
+      st.cands = BR;
+      if (tapping(lt, tTap)) st.candOn = 4;
+    }
+    if (lt >= tTap) { st.text = "【"; st.after = "】"; }
+    const chip = { getBoundingClientRect: () => ($("cands").children[4] || ya).getBoundingClientRect() };
+    st._finger = [{ t: tDown, el: ya, hold: true }, { t: tLong, el: ya }, { t: tTap, el: chip }, { t: 2.5, el: chip }];
   }
 
   // 英語：h（左フリック）→ a/A で H → i（上フリック）→ 空白 → 数字に切り替えて 10:00
@@ -556,14 +571,14 @@ body {
     $("oName").style.opacity = oIn(.3, .75); $("oName").style.transform = `translateY(${12 * (1 - oIn(.3, .75))}px)`;
     $("oTag1").style.opacity = oIn(.65, 1.1); $("oTag1").style.transform = `translateY(${10 * (1 - oIn(.65, 1.1))}px)`;
     $("oTag2").style.opacity = oIn(.95, 1.35);
-    const oOut = ease(prog(t, 2.0, 2.4));
-    op.opacity = t < 2.4 ? 1 - oOut : 0;
+    const oOut = ease(prog(t, 1.8, 2.2));
+    op.opacity = t < 2.2 ? 1 - oOut : 0;
     op.transform = `translateY(${-30 * oOut}px)`;
 
     // スマホの出入り
-    const pIn = ease(prog(t, 2.05, 2.5)), pOut = ease(prog(t, 21.6, 21.95));
+    const pIn = ease(prog(t, 1.85, 2.3)), pOut = ease(prog(t, 23.2, 23.55));
     const ph = $("phone").style;
-    ph.opacity = t < 2.05 || t > 21.95 ? 0 : pIn * (1 - pOut);
+    ph.opacity = t < 1.85 || t > 23.55 ? 0 : pIn * (1 - pOut);
     ph.transform = `translateY(${40 * (1 - pIn) + 20 * pOut}px)`;
 
     // 場面
@@ -582,19 +597,20 @@ body {
     } else cap.opacity = 0;
 
     // エンディング
-    const eIn = out(prog(t, 21.8, 22.3)), eOut = ease(prog(t, 24.6, 25));
-    $("end").style.opacity = t >= 21.8 ? eIn * (1 - eOut) : 0;
+    const eIn = out(prog(t, 23.4, 23.9)), eOut = ease(prog(t, 25.6, 26));
+    $("end").style.opacity = t >= 23.4 ? eIn * (1 - eOut) : 0;
     $("eCard").style.transform = `scale(${.94 + .06 * eIn})`;
-    tagEls.forEach((e, i) => { const q = out(prog(t, 22.1 + i * .08, 22.4 + i * .08)); e.style.opacity = q; e.style.transform = `translateY(${8 * (1 - q)}px)`; });
+    tagEls.forEach((e, i) => { const q = out(prog(t, 23.7 + i * .08, 24.0 + i * .08)); e.style.opacity = q; e.style.transform = `translateY(${8 * (1 - q)}px)`; });
 
     apply(t);
   }
 
   function apply(t) {
     // 入力欄
-    setT($("inTxt"), st.text); setT($("comp"), st.comp);
-    $("ph").style.display = st.text || st.comp ? "none" : "";
-    $("caret").style.opacity = (st.text || st.comp) ? (Math.floor(t * 2.2) % 2 ? .25 : 1) : 0;
+    setT($("inTxt"), st.text); setT($("comp"), st.comp); setT($("inAfter"), st.after);
+    const any = st.text || st.comp || st.after;
+    $("ph").style.display = any ? "none" : "";
+    $("caret").style.opacity = any ? (Math.floor(t * 2.2) % 2 ? .25 : 1) : 0;
 
     // 入力モード（あ / A / 1）・定型文・音声
     $("gJa").style.display = st.mode === 0 ? "" : "none";
@@ -602,7 +618,7 @@ body {
     $("gNum").style.display = st.mode === 2 ? "" : "none";
     modeSpans.forEach((s, i) => s.classList.toggle("cur", i === st.mode));
     $("phr").style.display = st.phr ? "block" : "none";
-    for (const c of document.querySelectorAll(".kbody > .col, .center")) c.style.visibility = st.phr ? "hidden" : "visible";
+    $("kbody").querySelector(".center").style.visibility = st.phr ? "hidden" : "visible";
     $("phrIn").style.transform = `translateY(${-st.phrScroll}px)`;
     $("voice").style.display = st.voice ? "flex" : "none";
 
@@ -647,7 +663,7 @@ body {
   // ---------- 再生・一時停止 ----------
   let acc = 0, last = performance.now(), paused = false;
   const reduce = !VIDEO && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (reduce) { paused = true; acc = 22.8; }
+  if (reduce) { paused = true; acc = 24.6; }
   function frame(now) {
     if (!paused) acc += (now - last) / 1000;
     last = now;
@@ -672,7 +688,7 @@ body {
   }
   window.addEventListener("resize", fit);
   fit();
-  render(reduce ? 22.8 : 0);
+  render(reduce ? 24.6 : 0);
   requestAnimationFrame(frame);
 })();
 </script>
