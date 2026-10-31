@@ -470,7 +470,8 @@ class KookyKeyboardService : InputMethodService() {
             for (q in ps) {
                 q.k.pivotX = q.k.width / 2f
                 q.k.pivotY = q.k.height / 2f
-                q.k.rotation = q.rot
+                // キーの並び（段違いの弧）はそのままで、キー自体の傾きは逆向き（親指の方を向く）
+                q.k.rotation = -q.rot
                 q.k.scaleX = sc
                 q.k.scaleY = sc
                 q.k.translationX = (w / 2 + (q.nx - midX) * sc) - q.ox
