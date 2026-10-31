@@ -422,9 +422,11 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     // ---------- キーの角度（扇形） ----------
-    // 親指の付け根（右手用は右下、左手用は左下）を中心に、キーを扇形に並べる
-    // 親指から遠いキーほど大きく傾けて少し下げる。全体はほんの少しだけ縮めてはみ出しを防ぐ
-    // （キー1つずつに傾きをかけるので、タッチ位置もAndroidが傾きに合わせて計算する）
+    // 親指の付け根を中心にした扇形に並べる（手書きの図に合わせた形）
+    //  ・中心は横幅の約75％の位置（右手用。左手用は約25％）で、キーボードの下の外側
+    //  ・中心の真上の列はまっすぐ、そこから離れるほど外側（奥）へ倒れる
+    //  ・各行は中心のまわりの弧になる（真ん中が高く、両端が下がる）
+    //  ・最後に、はみ出す分だけ全体を縮めて枠に収める（縮みは最小限）
     private fun applyTilt(body: LinearLayout) {
         val deg = prefs().getInt("tilt_deg", 0).coerceIn(0, 12)
         if (deg == 0) return
@@ -434,27 +436,45 @@ class KookyKeyboardService : InputMethodService() {
             val h = (b - t).toFloat()
             if (w <= 0 || h <= 0) return@addOnLayoutChangeListener
             unclip(body)
-            val rad = Math.toRadians(deg.toDouble())
-            val maxDrop = (w * Math.sin(rad) * 0.35).toFloat()
-            val sc = ((h - maxDrop) / h).coerceIn(0.85f, 1f)
+            val px = if (left) w * 0.25f else w * 0.75f
+            val py = h * 1.6f
+            val span = w * 0.75f
+            val keys = tiltKeys(body).filter { it.width > 0 }
             val rect = android.graphics.Rect()
-            for (k in tiltKeys(body)) {
-                if (k.width == 0) continue
+            data class P(val k: View, val ox: Float, val oy: Float, val nx: Float, val ny: Float, val rot: Float)
+            val ps = ArrayList<P>()
+            var minX = Float.MAX_VALUE; var maxX = -Float.MAX_VALUE
+            var minY = Float.MAX_VALUE; var maxY = -Float.MAX_VALUE
+            for (k in keys) {
                 rect.set(0, 0, k.width, k.height)
                 body.offsetDescendantRectToMyCoords(k, rect)
                 val cx = rect.exactCenterX()
                 val cy = rect.exactCenterY()
-                // 親指からの横の距離（0＝親指側の端、1＝反対側の端）
-                val d = (if (left) cx / w else (w - cx) / w).coerceIn(0f, 1f)
-                val a = deg * d
-                val drop = (w * d * Math.sin(Math.toRadians(a.toDouble())) * 0.35).toFloat()
-                k.pivotX = k.width / 2f
-                k.pivotY = k.height / 2f
-                k.rotation = if (left) a else -a
-                k.scaleX = sc
-                k.scaleY = sc
-                // 縦は中央に寄せて縮め、親指から遠いほど下げる（全体が枠に収まるように）
-                k.translationY = (cy - h / 2) * (sc - 1) + drop - maxDrop / 2
+                // 中心より左のキーは左へ、右のキーは右へ倒す（離れるほど大きく）
+                val a = deg * ((cx - px) / span).coerceIn(-1.4f, 1.4f)
+                val th = Math.toRadians(a.toDouble())
+                val vx = cx - px
+                val vy = cy - py
+                val nx = (px + vx * Math.cos(th) - vy * Math.sin(th)).toFloat()
+                val ny = (py + vx * Math.sin(th) + vy * Math.cos(th)).toFloat()
+                ps.add(P(k, cx, cy, nx, ny, a))
+                val hw = k.width / 2f
+                val hh = k.height / 2f
+                minX = minOf(minX, nx - hw); maxX = maxOf(maxX, nx + hw)
+                minY = minOf(minY, ny - hh); maxY = maxOf(maxY, ny + hh)
+            }
+            if (ps.isEmpty()) return@addOnLayoutChangeListener
+            val sc = minOf(1f, h / (maxY - minY), (w + dp(6)) / (maxX - minX)).coerceIn(0.8f, 1f)
+            val midX = (minX + maxX) / 2
+            val midY = (minY + maxY) / 2
+            for (q in ps) {
+                q.k.pivotX = q.k.width / 2f
+                q.k.pivotY = q.k.height / 2f
+                q.k.rotation = q.rot
+                q.k.scaleX = sc
+                q.k.scaleY = sc
+                q.k.translationX = (w / 2 + (q.nx - midX) * sc) - q.ox
+                q.k.translationY = (h / 2 + (q.ny - midY) * sc) - q.oy
             }
         }
     }
