@@ -421,27 +421,68 @@ class KookyKeyboardService : InputMethodService() {
         return root
     }
 
-    // ---------- キーの角度 ----------
-    // キーの部分を斜めに傾けて、親指で押しやすくする（右手用は左下がり、左手用は右下がり）
-    // 傾けてもはみ出さないように少し縮める。タッチ位置もAndroidが傾きに合わせて計算する
-    private fun applyTilt(v: View) {
+    // ---------- キーの角度（扇形） ----------
+    // 親指の付け根（右手用は右下、左手用は左下）を中心に、キーを扇形に並べる
+    // 親指から遠いキーほど大きく傾けて少し下げる。全体はほんの少しだけ縮めてはみ出しを防ぐ
+    // （キー1つずつに傾きをかけるので、タッチ位置もAndroidが傾きに合わせて計算する）
+    private fun applyTilt(body: LinearLayout) {
         val deg = prefs().getInt("tilt_deg", 0).coerceIn(0, 12)
         if (deg == 0) return
-        val sign = if (prefs().getString("tilt_dir", "right") == "left") 1f else -1f
-        v.addOnLayoutChangeListener { view, l, t, r, b, _, _, _, _ ->
+        val left = prefs().getString("tilt_dir", "right") == "left"
+        body.addOnLayoutChangeListener { _, l, t, r, b, _, _, _, _ ->
             val w = (r - l).toFloat()
             val h = (b - t).toFloat()
             if (w <= 0 || h <= 0) return@addOnLayoutChangeListener
+            unclip(body)
             val rad = Math.toRadians(deg.toDouble())
-            val c = Math.cos(rad).toFloat()
-            val sn = Math.sin(rad).toFloat()
-            // 横はほぼ収まるので、縦方向に収まる大きさを優先（多少の横の切れは許す）
-            val sc = minOf(1f, h / (w * sn + h * c), w / (w * c + h * sn) + 0.04f)
-            view.pivotX = w / 2
-            view.pivotY = h / 2
-            view.rotation = sign * deg
-            view.scaleX = sc
-            view.scaleY = sc
+            val maxDrop = (w * Math.sin(rad) * 0.35).toFloat()
+            val sc = ((h - maxDrop) / h).coerceIn(0.85f, 1f)
+            val rect = android.graphics.Rect()
+            for (k in tiltKeys(body)) {
+                if (k.width == 0) continue
+                rect.set(0, 0, k.width, k.height)
+                body.offsetDescendantRectToMyCoords(k, rect)
+                val cx = rect.exactCenterX()
+                val cy = rect.exactCenterY()
+                // 親指からの横の距離（0＝親指側の端、1＝反対側の端）
+                val d = (if (left) cx / w else (w - cx) / w).coerceIn(0f, 1f)
+                val a = deg * d
+                val drop = (w * d * Math.sin(Math.toRadians(a.toDouble())) * 0.35).toFloat()
+                k.pivotX = k.width / 2f
+                k.pivotY = k.height / 2f
+                k.rotation = if (left) a else -a
+                k.scaleX = sc
+                k.scaleY = sc
+                // 縦は中央に寄せて縮め、親指から遠いほど下げる（全体が枠に収まるように）
+                k.translationY = (cy - h / 2) * (sc - 1) + drop - maxDrop / 2
+            }
+        }
+    }
+
+    // 扇形にするキー（左右の列と、あ/A/1 の文字キー）
+    private fun tiltKeys(body: LinearLayout): List<View> {
+        val out = ArrayList<View>()
+        fun kids(g: View?) {
+            val vg = g as? android.view.ViewGroup ?: return
+            for (i in 0 until vg.childCount) out.add(vg.getChildAt(i))
+        }
+        kids(body.getChildAt(0))
+        kids(body.getChildAt(2))
+        for (grid in listOf(jaGrid, enGrid, numGrid)) {
+            val g = grid as? android.view.ViewGroup ?: continue
+            for (i in 0 until g.childCount) kids(g.getChildAt(i))
+        }
+        return out
+    }
+
+    // 傾けたキーが枠で切れないように、親の切り取りを外す
+    private fun unclip(v: View) {
+        val vg = v as? android.view.ViewGroup ?: return
+        vg.clipChildren = false
+        vg.clipToPadding = false
+        for (i in 0 until vg.childCount) {
+            val c = vg.getChildAt(i)
+            if (c !is ScrollView) unclip(c)
         }
     }
 
