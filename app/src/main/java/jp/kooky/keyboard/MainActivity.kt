@@ -280,6 +280,12 @@ class MainActivity : Activity() {
         c.addView(sizeSlider("高さ", "height_pct", 100, 70, 150), blockParams())
         c.addView(sizeSlider("片手モードの幅", "onehand_pct", 78, 55, 95), blockParams())
         c.addView(sizeSlider("フローティングの幅", "float_pct", 88, 50, 100), blockParams())
+
+        c.addView(section("キーの角度"))
+        c.addView(degSlider(), blockParams())
+        c.addView(tiltDirPicker(), blockParams())
+        c.addView(text("キーを斜めに傾けて、親指で押しやすくするよ。傾けた分だけキーが少し小さくなるので、気になるときは高さを上げてね", 11f, Ui.SUB)
+            .apply { setPadding(0, dp(6), 0, 0) })
         c.addView(text("フローティングはキーボードのツールバーの「浮いた窓」アイコンでオン・オフ。上の二本線をドラッグで移動できるよ", 11f, Ui.SUB)
             .apply { setPadding(0, dp(6), 0, 0) })
 
@@ -380,6 +386,11 @@ class MainActivity : Activity() {
         userBox = ub
         col.addView(button("＋ 単語を登録", Ui.ORANGE) { editUserWord(null) }, blockParams())
         renderUserWords()
+
+        col.addView(section("ライブ変換"))
+        col.addView(liveToggle(), blockParams())
+        col.addView(text("オンにすると、打っている途中から漢字に変換して表示するよ。確定キーでそのまま確定、変換キーで別の候補を選べる", 11f, Ui.SUB)
+            .apply { setPadding(0, dp(6), 0, 0) })
 
         col.addView(section("学習"))
         col.addView(text("選んだ変換は覚えて、次から先に出すよ", 11f, Ui.SUB))
@@ -1035,6 +1046,87 @@ class MainActivity : Activity() {
     }
 
     private fun blockParams() = LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(8) }
+
+    // 2択ボタン（オレンジが選択中）
+    private fun choice2(key: String, def: String, opts: List<Pair<String, String>>): View {
+        val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val btns = ArrayList<Pair<TextView, String>>()
+        fun paint() {
+            val now = prefs.getString(key, def)
+            for ((tv, k) in btns) {
+                val on = k == now
+                tv.setTextColor(if (on) Ui.BG else Ui.TEXT)
+                tv.background = Ui.pressable(if (on) Ui.ORANGE else Ui.KEY, dp(10).toFloat())
+            }
+        }
+        opts.forEachIndexed { i, (k, label) ->
+            val tv = TextView(this).apply {
+                text = label
+                textSize = 14f
+                gravity = Gravity.CENTER
+                typeface = Typeface.DEFAULT_BOLD
+                setOnClickListener {
+                    prefs.edit().putString(key, k).apply()
+                    paint()
+                }
+            }
+            btns.add(tv to k)
+            row.addView(tv, LinearLayout.LayoutParams(0, dp(46), 1f).apply { if (i > 0) leftMargin = dp(6) })
+        }
+        paint()
+        return row
+    }
+
+    private fun tiltDirPicker() = choice2("tilt_dir", "right", listOf("right" to "右手用（左下がり）", "left" to "左手用（右下がり）"))
+
+    private fun liveToggle(): View {
+        val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
+        // 保存は文字で行い、キーボード側は真偽値で読む
+        val v = choice2("live_conv_s", if (prefs.getBoolean("live_conv", true)) "on" else "off",
+            listOf("on" to "オン", "off" to "オフ"))
+        prefs.registerOnSharedPreferenceChangeListener(liveSync)
+        return v
+    }
+
+    private val liveSync = android.content.SharedPreferences.OnSharedPreferenceChangeListener { p, k ->
+        if (k == "live_conv_s") p.edit().putBoolean("live_conv", p.getString(k, "on") == "on").apply()
+    }
+
+    // キーの角度（0〜12度、1度刻み）
+    private fun degSlider(): View {
+        val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = Ui.round(Ui.CARD, dp(10).toFloat())
+            setPadding(dp(12), dp(10), dp(12), dp(6))
+        }
+        val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        head.addView(text("角度", 14f, Ui.TEXT), LinearLayout.LayoutParams(0, wrap, 1f))
+        val vt = text("", 14f, Ui.ORANGE, bold = true)
+        head.addView(vt)
+        box.addView(head)
+        val start = prefs.getInt("tilt_deg", 0).coerceIn(0, 12)
+        vt.text = if (start == 0) "なし" else "${start}°"
+        val bar = SeekBar(this).apply {
+            max = 12
+            progress = start
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {
+                    vt.text = if (p == 0) "なし" else "$p°"
+                    prefs.edit().putInt("tilt_deg", p).apply()
+                }
+                override fun onStartTrackingTouch(sb: SeekBar?) {}
+                override fun onStopTrackingTouch(sb: SeekBar?) {}
+            })
+        }
+        box.addView(bar, LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(4) })
+        box.addView(text("なしに戻す", 11f, Ui.SUB).apply {
+            setPadding(0, dp(4), 0, dp(4))
+            setOnClickListener { bar.progress = 0 }
+        })
+        return box
+    }
 
     // ナビゲーションバーの見え方（キーボードと同じ色 / 透明）
     private fun navPicker(): View {

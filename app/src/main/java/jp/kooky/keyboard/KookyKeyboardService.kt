@@ -90,7 +90,9 @@ class KookyKeyboardService : InputMethodService() {
             pr.getString("bg_crop", ""),
             pr.getBoolean("floating", false),
             pr.getInt("float_pct", 88).coerceIn(50, 100),
-            pr.getString("nav_mode", "color")
+            pr.getString("nav_mode", "color"),
+            pr.getInt("tilt_deg", 0).coerceIn(0, 12),
+            pr.getString("tilt_dir", "right")
         ).joinToString("|")
     }
 
@@ -226,7 +228,7 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     // 見た目の設定（高さ・色・透過など）が変わったら、表示中のキーボードをすぐ作り直す
-    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans", "bg_image", "bg_crop", "float_pct", "nav_mode")
+    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans", "bg_image", "bg_crop", "float_pct", "nav_mode", "tilt_deg", "tilt_dir")
     private val rebuildLook = Runnable {
         if (isInputViewShown && lookKey() != builtLook) {
             stopRepeat()
@@ -390,6 +392,7 @@ class KookyKeyboardService : InputMethodService() {
         body.addView(rightColumn(), LinearLayout.LayoutParams(0, match, 1f))
         bodyFrame.addView(body, FrameLayout.LayoutParams(match, match))
         keysRow = body
+        applyTilt(body)
 
         p.addView(bodyFrame, LinearLayout.LayoutParams(match, sz(208)).apply { topMargin = dp(2) })
 
@@ -416,6 +419,30 @@ class KookyKeyboardService : InputMethodService() {
             }
         }
         return root
+    }
+
+    // ---------- キーの角度 ----------
+    // キーの部分を斜めに傾けて、親指で押しやすくする（右手用は左下がり、左手用は右下がり）
+    // 傾けてもはみ出さないように少し縮める。タッチ位置もAndroidが傾きに合わせて計算する
+    private fun applyTilt(v: View) {
+        val deg = prefs().getInt("tilt_deg", 0).coerceIn(0, 12)
+        if (deg == 0) return
+        val sign = if (prefs().getString("tilt_dir", "right") == "left") 1f else -1f
+        v.addOnLayoutChangeListener { view, l, t, r, b, _, _, _, _ ->
+            val w = (r - l).toFloat()
+            val h = (b - t).toFloat()
+            if (w <= 0 || h <= 0) return@addOnLayoutChangeListener
+            val rad = Math.toRadians(deg.toDouble())
+            val c = Math.cos(rad).toFloat()
+            val sn = Math.sin(rad).toFloat()
+            // 横はほぼ収まるので、縦方向に収まる大きさを優先（多少の横の切れは許す）
+            val sc = minOf(1f, h / (w * sn + h * c), w / (w * c + h * sn) + 0.04f)
+            view.pivotX = w / 2
+            view.pivotY = h / 2
+            view.rotation = sign * deg
+            view.scaleX = sc
+            view.scaleY = sc
+        }
     }
 
     // ---------- ナビゲーションバー（画面下の ⌨ ∨ のバー）の色 ----------
@@ -1122,6 +1149,18 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     // 入力欄の下線つき文字を更新（候補選択中は候補＋残りを表示）
+    // ライブ変換：打っている途中から、読み全体を変換した結果を入力欄に出す
+    private fun liveOn() = prefs().getBoolean("live_conv", true)
+
+    // ライブ変換で今出している候補（読み全体を変換したもののうち先頭）。オフなら -1
+    private fun liveIdx(): Int {
+        if (!liveOn() || composing.isEmpty()) return -1
+        return cands.indexOfFirst { it.len == composing.length }
+    }
+
+    // 入力欄・候補バーで「選ばれている」候補（自分で選んだもの、なければライブ変換の候補）
+    private fun curIdx(): Int = if (sel >= 0) sel else liveIdx()
+
     private fun showComposing() {
         val ic = currentInputConnection ?: return
         if (composing.isEmpty()) {
@@ -1129,7 +1168,7 @@ class KookyKeyboardService : InputMethodService() {
             ic.finishComposingText()
             return
         }
-        val c = cands.getOrNull(sel)
+        val c = cands.getOrNull(curIdx())
         if (c != null) {
             ic.setComposingText(c.word + composing.substring(c.len), 1)
         } else {
@@ -1137,14 +1176,15 @@ class KookyKeyboardService : InputMethodService() {
         }
     }
 
-    private fun choose(i: Int) {
+    private fun choose(i: Int, learn: Boolean = true) {
         val c = cands.getOrNull(i) ?: return
         val ic = currentInputConnection ?: return
         val reading = composing.substring(0, c.len)
         ic.commitText(c.word, 1)
         lastCommit = c.word
         lastReading = reading
-        dict.learn(reading, c.word, c.segs)
+        // ライブ変換の候補をそのまま確定したときは学習しない（自分で選んだときだけ覚える）
+        if (learn) dict.learn(reading, c.word, c.segs)
         composing.delete(0, c.len)
         resetToggle()
         updateComposing()
@@ -1155,6 +1195,11 @@ class KookyKeyboardService : InputMethodService() {
         if (composing.isEmpty()) return
         if (sel >= 0) choose(sel)
         if (composing.isEmpty()) return
+        val li = liveIdx()
+        if (li >= 0) {
+            choose(li, learn = false)
+            if (composing.isEmpty()) return
+        }
         val raw = composing.toString()
         currentInputConnection?.commitText(raw, 1)
         lastCommit = raw
@@ -1275,7 +1320,7 @@ class KookyKeyboardService : InputMethodService() {
         }
         val shown = cands.take(40)
         shown.forEachIndexed { i, c ->
-            val on = i == sel
+            val on = i == curIdx()
             val partial = c.len < composing.length
             val chip = TextView(this).apply {
                 text = if (partial) c.word + "…" else c.word
@@ -1796,7 +1841,7 @@ class KookyKeyboardService : InputMethodService() {
         v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
         if (composing.isNotEmpty()) {
             if (cands.isEmpty()) return
-            sel = (sel + 1) % minOf(cands.size, 40)
+            sel = (curIdx() + 1) % minOf(cands.size, 40)
             resetToggle()
             showComposing()
             refreshCandBar()
