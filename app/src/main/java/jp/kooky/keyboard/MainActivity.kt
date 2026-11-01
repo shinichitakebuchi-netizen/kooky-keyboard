@@ -284,6 +284,9 @@ class MainActivity : Activity() {
         c.addView(section("キーの角度"))
         c.addView(degSlider(), blockParams())
         c.addView(tiltDirPicker(), blockParams())
+        c.addView(sizeSlider("フリックの回転（扇形の傾きに対する割合）", "flick_pct", 100, 0, 200), blockParams())
+        c.addView(text("100％で列の向きどおり、0％でまっすぐの上下左右、200％で列の向きの2倍回すよ。片手モードで左に寄せたときは、扇形もフリックも自動で左右反転するよ", 11f, Ui.SUB)
+            .apply { setPadding(0, dp(6), 0, 0) })
         c.addView(text("キーを扇形の段違いに並べて、親指で押しやすくするよ。キーボードのツールバーの扇形アイコンで、角度をつける／元に戻すを切り替えられる。段違いにした分だけキーが少し小さくなるので、気になるときは高さを上げてね", 11f, Ui.SUB)
             .apply { setPadding(0, dp(6), 0, 0) })
         c.addView(text("フローティングはキーボードのツールバーの「浮いた窓」アイコンでオン・オフ。上の二本線をドラッグで移動できるよ", 11f, Ui.SUB)
@@ -317,7 +320,7 @@ class MainActivity : Activity() {
 
     // ---------- 音声入力・AI添削 ----------
     private fun buildVoice() {
-        col.addView(text("キーボードのマイクで話す →「添削して入力」でAIがビジネス敬語に整えて自動で入力するよ", 11f, Ui.SUB)
+        col.addView(text("キーボードのマイクをタップでふつうの音声入力、長押しでAI添削モード（話した内容をビジネス敬語に整えて入力）になるよ", 11f, Ui.SUB)
             .apply { setPadding(0, dp(8), 0, 0) })
 
         col.addView(section("マイク"))

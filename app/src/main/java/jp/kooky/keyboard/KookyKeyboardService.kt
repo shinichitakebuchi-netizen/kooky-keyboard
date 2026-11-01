@@ -93,6 +93,7 @@ class KookyKeyboardService : InputMethodService() {
             pr.getString("nav_mode", "color"),
             pr.getInt("tilt_deg", 0).coerceIn(0, 12),
             pr.getBoolean("tilt_on", true),
+            pr.getInt("flick_pct", 100),
             pr.getString("tilt_dir", "right")
         ).joinToString("|")
     }
@@ -127,6 +128,7 @@ class KookyKeyboardService : InputMethodService() {
     private var lastInserted = ""
     private var voiceStage = 0 // 0=非表示 1=聞き取り中 2=添削中 3=入力済み 4=お知らせ
     private var voiceToken = 0 // キャンセル後に古い結果が入らないようにする番号
+    private var voiceAi = false // true＝AI添削モード（長押しで開始）
 
     // 押したときの波紋（ライトは暗め、それ以外は明るめ）
     private fun press(color: Int, radius: Float) =
@@ -229,7 +231,7 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     // 見た目の設定（高さ・色・透過など）が変わったら、表示中のキーボードをすぐ作り直す
-    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans", "bg_image", "bg_crop", "float_pct", "nav_mode", "tilt_deg", "tilt_dir", "tilt_on")
+    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans", "bg_image", "bg_crop", "float_pct", "nav_mode", "tilt_deg", "tilt_dir", "tilt_on", "flick_pct")
     private val rebuildLook = Runnable {
         if (isInputViewShown && lookKey() != builtLook) {
             stopRepeat()
@@ -354,7 +356,13 @@ class KookyKeyboardService : InputMethodService() {
         if (!floating) topIcons.add(hand) else hand.visibility = View.GONE
 
         // 🎤 音声入力 → AIでビジネス敬語に添削 → 自動で入力
-        val mic = toolKey(R.drawable.ic_kb_mic) { startVoice() }
+        // タップ：ふつうの音声入力 ／ 長押し：AIでビジネス敬語に添削して入力
+        val mic = toolKey(R.drawable.ic_kb_mic) { startVoice(false) }
+        mic.setOnLongClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            startVoice(true)
+            true
+        }
         top.addView(mic, LinearLayout.LayoutParams(dp(40), match).apply { leftMargin = dp(4) })
         topIcons.add(mic)
 
@@ -462,8 +470,14 @@ class KookyKeyboardService : InputMethodService() {
         flickAngle.clear()
         val deg = prefs().getInt("tilt_deg", 0).coerceIn(0, 12)
         if (deg == 0 || !prefs().getBoolean("tilt_on", true)) return
-        val left = prefs().getString("tilt_dir", "right") == "left"
         body.addOnLayoutChangeListener { _, l, t, r, b, _, _, _, _ ->
+            // 片手モードで左に寄せているときは左手用、右に寄せているときは右手用に自動で切り替える
+            val left = when (oneHand) {
+                2 -> true
+                1 -> false
+                else -> prefs().getString("tilt_dir", "right") == "left"
+            }
+            val flickPct = prefs().getInt("flick_pct", 100).coerceIn(0, 200) / 100f
             val w = (r - l).toFloat()
             val h = (b - t).toFloat()
             if (w <= 0 || h <= 0) return@addOnLayoutChangeListener
@@ -504,7 +518,7 @@ class KookyKeyboardService : InputMethodService() {
                 q.k.pivotY = q.k.height / 2f
                 // キー自体はまっすぐのまま。並び（列が段違いに下がり、下の段ほど親指側へずれる）だけ扇形にする
                 q.k.rotation = 0f
-                flickAngle[q.k] = q.rot
+                flickAngle[q.k] = q.rot * flickPct
                 q.k.scaleX = sc
                 q.k.scaleY = sc
                 q.k.translationX = (w / 2 + (q.nx - midX) * sc) - q.ox
@@ -813,6 +827,7 @@ class KookyKeyboardService : InputMethodService() {
         oneHand = mode
         prefs().edit().putInt("one_hand", oneHand).apply()
         applyOneHand()
+        keysRow?.requestLayout()
     }
 
     // 0=通常 1=右寄せ（左に操作パネル） 2=左寄せ（右に操作パネル）
@@ -1695,7 +1710,7 @@ class KookyKeyboardService : InputMethodService() {
         val sub = voiceSubBtn ?: return
         when (stage) {
             1 -> {
-                main.text = "添削して入力"; main.visibility = View.VISIBLE
+                main.text = if (voiceAi) "添削して入力" else "入力"; main.visibility = View.VISIBLE
                 sub.text = "キャンセル"; sub.visibility = View.VISIBLE
             }
             2 -> {
@@ -1729,7 +1744,7 @@ class KookyKeyboardService : InputMethodService() {
         }
     }
 
-    private fun startVoice() {
+    private fun startVoice(ai: Boolean) {
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             toast("マイクが許可されてないよ。⚙の設定画面で許可してね")
             return
@@ -1744,7 +1759,8 @@ class KookyKeyboardService : InputMethodService() {
         voiceBuf.clear()
         voiceStopping = false
         voiceFinished = false
-        setStage(1, "🎤 準備中…", "")
+        voiceAi = ai
+        setStage(1, if (ai) "✨ 準備中…（AI添削）" else "🎤 準備中…", "")
         val r = SpeechRecognizer.createSpeechRecognizer(this)
         r.setRecognitionListener(voiceListener)
         recognizer = r
@@ -1776,7 +1792,8 @@ class KookyKeyboardService : InputMethodService() {
     // 区切りで認識が止まっても「完了」を押すまで聞き続ける
     private val voiceListener = object : RecognitionListener {
         override fun onReadyForSpeech(params: Bundle?) {
-            if (voiceStage == 1 && !voiceStopping) voiceStatus?.text = "🎤 聞いています…（話し終わったら「完了」）"
+            if (voiceStage == 1 && !voiceStopping) voiceStatus?.text =
+                if (voiceAi) "✨ 聞いています…（AI添削モード）" else "🎤 聞いています…（話し終わったら「入力」）"
         }
 
         override fun onPartialResults(partialResults: Bundle?) {
@@ -1845,6 +1862,12 @@ class KookyKeyboardService : InputMethodService() {
         val raw = voiceBuf.toString().trim()
         if (raw.isEmpty()) {
             setStage(4, "聞き取れなかったよ", "")
+            return
+        }
+        // ふつうの音声入力：聞き取った文をそのまま入れて閉じる
+        if (!voiceAi) {
+            insertVoice(raw, raw)
+            setStage(0, "", "")
             return
         }
         val apiKey = prefs().getString("gemini_key", "") ?: ""
