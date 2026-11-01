@@ -92,6 +92,7 @@ class KookyKeyboardService : InputMethodService() {
             pr.getInt("float_pct", 88).coerceIn(50, 100),
             pr.getString("nav_mode", "color"),
             pr.getInt("tilt_deg", 0).coerceIn(0, 12),
+            pr.getBoolean("tilt_on", true),
             pr.getString("tilt_dir", "right")
         ).joinToString("|")
     }
@@ -228,7 +229,7 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     // 見た目の設定（高さ・色・透過など）が変わったら、表示中のキーボードをすぐ作り直す
-    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans", "bg_image", "bg_crop", "float_pct", "nav_mode", "tilt_deg", "tilt_dir")
+    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans", "bg_image", "bg_crop", "float_pct", "nav_mode", "tilt_deg", "tilt_dir", "tilt_on")
     private val rebuildLook = Runnable {
         if (isInputViewShown && lookKey() != builtLook) {
             stopRepeat()
@@ -340,6 +341,13 @@ class KookyKeyboardService : InputMethodService() {
         top.addView(flt, LinearLayout.LayoutParams(dp(40), match).apply { leftMargin = dp(4) })
         topIcons.add(flt)
 
+        // キーの角度（扇形）のオン・オフ。オンの間はオレンジ
+        val tiltOn = prefs().getBoolean("tilt_on", true) && prefs().getInt("tilt_deg", 0) > 0
+        val tlt = toolKey(R.drawable.ic_kb_tilt) { toggleTilt() }
+        if (tiltOn) tlt.background = iconBg(pal.accent, dp(8).toFloat(), R.drawable.ic_kb_tilt, pal.onAccent)
+        top.addView(tlt, LinearLayout.LayoutParams(dp(40), match).apply { leftMargin = dp(4) })
+        topIcons.add(tlt)
+
         // 片手モードの切り替え（通常 ⇔ 右寄せ）。フローティング中は使わない
         val hand = toolKey(R.drawable.ic_kb_hand) { setOneHand(if (oneHand == 0) 1 else 0) }
         top.addView(hand, LinearLayout.LayoutParams(dp(40), match).apply { leftMargin = dp(4) })
@@ -427,9 +435,29 @@ class KookyKeyboardService : InputMethodService() {
     //  ・親指側の端の列はまっすぐ、そこから離れる列ほど下がって段違いになる
     //  ・各列は、下の段ほど親指側へずれる（キー自体は傾けない）
     //  ・最後に、はみ出す分だけ全体を縮めて枠に収める（縮みは最小限）
+    // ツールバーのボタン：角度をつける ⇔ 元に戻す
+    // 角度が「なし」のままなら、8°にしてオンにする
+    private fun toggleTilt() {
+        val pr = prefs()
+        val on = pr.getBoolean("tilt_on", true) && pr.getInt("tilt_deg", 0) > 0
+        val ed = pr.edit()
+        if (on) {
+            ed.putBoolean("tilt_on", false)
+        } else {
+            ed.putBoolean("tilt_on", true)
+            if (pr.getInt("tilt_deg", 0) == 0) ed.putInt("tilt_deg", 8)
+        }
+        ed.apply()
+        stopRepeat()
+        cancelVoice()
+        commitAll()
+        builtLook = lookKey()
+        setInputView(onCreateInputView())
+    }
+
     private fun applyTilt(body: LinearLayout) {
         val deg = prefs().getInt("tilt_deg", 0).coerceIn(0, 12)
-        if (deg == 0) return
+        if (deg == 0 || !prefs().getBoolean("tilt_on", true)) return
         val left = prefs().getString("tilt_dir", "right") == "left"
         body.addOnLayoutChangeListener { _, l, t, r, b, _, _, _, _ ->
             val w = (r - l).toFloat()

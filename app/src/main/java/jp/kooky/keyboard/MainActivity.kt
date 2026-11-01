@@ -284,7 +284,7 @@ class MainActivity : Activity() {
         c.addView(section("キーの角度"))
         c.addView(degSlider(), blockParams())
         c.addView(tiltDirPicker(), blockParams())
-        c.addView(text("キーを斜めに傾けて、親指で押しやすくするよ。傾けた分だけキーが少し小さくなるので、気になるときは高さを上げてね", 11f, Ui.SUB)
+        c.addView(text("キーを扇形の段違いに並べて、親指で押しやすくするよ。キーボードのツールバーの扇形アイコンで、角度をつける／元に戻すを切り替えられる。段違いにした分だけキーが少し小さくなるので、気になるときは高さを上げてね", 11f, Ui.SUB)
             .apply { setPadding(0, dp(6), 0, 0) })
         c.addView(text("フローティングはキーボードのツールバーの「浮いた窓」アイコンでオン・オフ。上の二本線をドラッグで移動できるよ", 11f, Ui.SUB)
             .apply { setPadding(0, dp(6), 0, 0) })
