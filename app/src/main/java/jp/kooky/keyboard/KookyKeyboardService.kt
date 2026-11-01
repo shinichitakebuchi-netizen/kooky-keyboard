@@ -852,7 +852,7 @@ class KookyKeyboardService : InputMethodService() {
         }
         col.addView(roundBtn(R.drawable.ic_kb_expand, true) { setOneHand(0) },
             LinearLayout.LayoutParams(dp(48), dp(48)).apply { bottomMargin = dp(20) })
-        col.addView(roundBtn(if (isLeft) R.drawable.ic_kb_left else R.drawable.ic_kb_right, false) {
+        col.addView(roundBtn(if (isLeft) R.drawable.ic_kb_left else R.drawable.ic_kb_right, true) {
             setOneHand(if (isLeft) 2 else 1)
         },
             LinearLayout.LayoutParams(dp(48), dp(48)))
@@ -860,7 +860,7 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     // 丸ボタン（strong=true はオレンジ：透過時でも見つけやすく）
-    // 片手モードの操作ボタン：丸い枠は付けず、記号だけ（全幅に戻すはオレンジで目立たせる）
+    // 片手モードの操作ボタン：丸い枠は付けず、記号だけ（全幅に戻す・寄せボタンともオレンジ）
     private fun roundBtn(icon: Int, strong: Boolean, onClick: () -> Unit): TextView = TextView(this).apply {
         background = iconBg(Color.TRANSPARENT, dp(24).toFloat(), icon, if (strong) pal.accent else pal.text, 32)
         setOnClickListener {
