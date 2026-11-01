@@ -555,7 +555,8 @@ class KookyKeyboardService : InputMethodService() {
         vg.clipToPadding = false
         for (i in 0 until vg.childCount) {
             val c = vg.getChildAt(i)
-            if (c !is ScrollView) unclip(c)
+            // スクロールする部品や記号パネルの中は切り取りを残す（はみ出して重ならないように）
+            if (c !is ScrollView && c !is HorizontalScrollView && c !== symPanel) unclip(c)
         }
     }
 
@@ -1645,6 +1646,8 @@ class KookyKeyboardService : InputMethodService() {
         if (tab == TAB_PHRASE) backToKeyboard()
         symOpen = true
         if (symCat == 0 && recentSyms().isEmpty()) symCat = 1
+        // 後ろの文字キーは隠す（扇形のときに記号の間から透けて二重に見えないように）
+        for (g in listOf(jaGrid, enGrid, numGrid)) g?.visibility = View.INVISIBLE
         symPanel?.visibility = View.VISIBLE
         renderSymbols()
     }
@@ -1653,6 +1656,7 @@ class KookyKeyboardService : InputMethodService() {
         if (!symOpen) return
         symOpen = false
         symPanel?.visibility = View.GONE
+        render()
     }
 
     private fun renderSymbols() {
