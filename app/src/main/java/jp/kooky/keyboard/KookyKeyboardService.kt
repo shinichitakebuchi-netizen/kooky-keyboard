@@ -455,7 +455,11 @@ class KookyKeyboardService : InputMethodService() {
         setInputView(onCreateInputView())
     }
 
+    // 扇形にしたときの、キーごとの列の向き（度）。フリックの方向判定に使う
+    private val flickAngle = HashMap<View, Float>()
+
     private fun applyTilt(body: LinearLayout) {
+        flickAngle.clear()
         val deg = prefs().getInt("tilt_deg", 0).coerceIn(0, 12)
         if (deg == 0 || !prefs().getBoolean("tilt_on", true)) return
         val left = prefs().getString("tilt_dir", "right") == "left"
@@ -500,6 +504,7 @@ class KookyKeyboardService : InputMethodService() {
                 q.k.pivotY = q.k.height / 2f
                 // キー自体はまっすぐのまま。並び（列が段違いに下がり、下の段ほど親指側へずれる）だけ扇形にする
                 q.k.rotation = 0f
+                flickAngle[q.k] = q.rot
                 q.k.scaleX = sc
                 q.k.scaleY = sc
                 q.k.translationX = (w / 2 + (q.nx - midX) * sc) - q.ox
@@ -1107,8 +1112,12 @@ class KookyKeyboardService : InputMethodService() {
         }
         val th = dp(18).toFloat()
         fun dir(x: Float, y: Float): Int {
-            val dx = x - x0
-            val dy = y - y0
+            // 扇形のときは、キーの列の向きに合わせてフリックの上下左右も回す
+            val ang = Math.toRadians((flickAngle[k] ?: 0f).toDouble())
+            val rx = x - x0
+            val ry = y - y0
+            val dx = (rx * Math.cos(ang) + ry * Math.sin(ang)).toFloat()
+            val dy = (-rx * Math.sin(ang) + ry * Math.cos(ang)).toFloat()
             if (abs(dx) < th && abs(dy) < th) return 0
             return if (abs(dx) > abs(dy)) {
                 if (dx < 0) 1 else 3

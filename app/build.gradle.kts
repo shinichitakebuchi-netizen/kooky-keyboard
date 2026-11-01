@@ -11,8 +11,8 @@ android {
         applicationId = "jp.kooky.keyboard"
         minSdk = 26
         targetSdk = 34
-        versionCode = 37
-        versionName = "0.37"
+        versionCode = 38
+        versionName = "0.38"
     }
 
     // 毎回同じ鍵で署名して、上書きインストールできるようにする
