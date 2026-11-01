@@ -370,7 +370,7 @@ class KookyKeyboardService : InputMethodService() {
 
         // 本体（12キー配置）：[左列 ↶ ◀ @ あA1][中央：あ/A/1][右列 ⌫ ▶ ␣ ↵]
         val bodyFrame = FrameLayout(this)
-        val body = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val body = FanLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         body.addView(leftColumn(), LinearLayout.LayoutParams(0, match, 1f))
 
         val area = FrameLayout(this)
@@ -408,6 +408,10 @@ class KookyKeyboardService : InputMethodService() {
         body.addView(rightColumn(), LinearLayout.LayoutParams(0, match, 1f))
         bodyFrame.addView(body, FrameLayout.LayoutParams(match, match))
         keysRow = body
+        // 扇形のときは、見た目どおりの位置でキーにタッチを渡す（キーの端まで反応させる）
+        body.active = { flickAngle.isNotEmpty() }
+        body.keys = { tiltKeys(body) }
+        body.overlays = { listOfNotNull(voicePanel, listScroll) }
         applyTilt(body)
 
         p.addView(bodyFrame, LinearLayout.LayoutParams(match, sz(208)).apply { topMargin = dp(2) })
