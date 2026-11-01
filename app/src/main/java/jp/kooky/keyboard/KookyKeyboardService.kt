@@ -402,6 +402,7 @@ class KookyKeyboardService : InputMethodService() {
         listScroll = scroll
 
         // 音声入力中に上にかぶせるパネル
+        area.addView(buildSymPanel(), FrameLayout.LayoutParams(match, match))
         area.addView(buildVoicePanel(), FrameLayout.LayoutParams(match, match))
 
         body.addView(area, LinearLayout.LayoutParams(0, match, 3f))
@@ -411,7 +412,7 @@ class KookyKeyboardService : InputMethodService() {
         // 扇形のときは、見た目どおりの位置でキーにタッチを渡す（キーの端まで反応させる）
         body.active = { flickAngle.isNotEmpty() }
         body.keys = { tiltKeys(body) }
-        body.overlays = { listOfNotNull(voicePanel, listScroll) }
+        body.overlays = { listOfNotNull(voicePanel, listScroll, symPanel) }
         applyTilt(body)
 
         p.addView(bodyFrame, LinearLayout.LayoutParams(match, sz(208)).apply { topMargin = dp(2) })
@@ -910,9 +911,10 @@ class KookyKeyboardService : InputMethodService() {
                 it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                 switchMode()
             }
+            // 長押し：記号・絵文字パネル
             setOnLongClickListener {
-                commitAll()
-                imm().showInputMethodPicker()
+                it.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                openSymbols()
                 true
             }
         }
@@ -1049,6 +1051,7 @@ class KookyKeyboardService : InputMethodService() {
     // 定型文パネルの開閉（開くときは入力中の文字を確定してから）
     private fun togglePhrases() {
         closeBrackets()
+        closeSymbols()
         if (tab == TAB_PHRASE) {
             backToKeyboard()
             return
@@ -1327,6 +1330,7 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     private fun clearComposingState() {
+        closeSymbols()
         bracketOpen = false
         composing.clear()
         cands = emptyList()
@@ -1580,6 +1584,10 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     private fun switchMode() {
+        if (symOpen) {
+            closeSymbols()
+            return
+        }
         closeBrackets()
         commitAll()
         resetToggle()
@@ -1589,6 +1597,124 @@ class KookyKeyboardService : InputMethodService() {
         shift = 0
         updateCaseLabels()
         render()
+    }
+
+    // ---------- 記号・絵文字パネル（あA1の長押し） ----------
+    private var symPanel: View? = null
+    private var symTabs: LinearLayout? = null
+    private var symGrid: LinearLayout? = null
+    private var symScroll: ScrollView? = null
+    private var symOpen = false
+    private var symCat = 0 // 0＝最近使ったもの、1〜＝Symbols.CATEGORIES
+
+    private fun recentSyms(): List<String> =
+        (prefs().getString("sym_recent", "") ?: "").split("\u0001").filter { it.isNotEmpty() }
+
+    private fun pushRecent(sym: String) {
+        val list = (listOf(sym) + recentSyms().filter { it != sym }).take(30)
+        prefs().edit().putString("sym_recent", list.joinToString("\u0001")).apply()
+    }
+
+    private fun buildSymPanel(): View {
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            isClickable = true
+            setPadding(dp(1), 0, dp(1), 0)
+        }
+        val ts = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
+        val tabs = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        ts.addView(tabs)
+        panel.addView(ts, LinearLayout.LayoutParams(match, dp(28)))
+        val sv = ScrollView(this).apply { isVerticalScrollBarEnabled = false }
+        val grid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        sv.addView(grid)
+        panel.addView(sv, LinearLayout.LayoutParams(match, 0, 1f).apply { topMargin = dp(3) })
+        symPanel = panel
+        symTabs = tabs
+        symGrid = grid
+        symScroll = sv
+        return panel
+    }
+
+    private fun openSymbols() {
+        commitAll()
+        resetToggle()
+        closeBrackets()
+        cancelVoice()
+        if (tab == TAB_PHRASE) backToKeyboard()
+        symOpen = true
+        if (symCat == 0 && recentSyms().isEmpty()) symCat = 1
+        symPanel?.visibility = View.VISIBLE
+        renderSymbols()
+    }
+
+    private fun closeSymbols() {
+        if (!symOpen) return
+        symOpen = false
+        symPanel?.visibility = View.GONE
+    }
+
+    private fun renderSymbols() {
+        val tabs = symTabs ?: return
+        val grid = symGrid ?: return
+        tabs.removeAllViews()
+        val names = listOf("最近") + Symbols.CATEGORIES.map { it.first }
+        names.forEachIndexed { i, name ->
+            val on = i == symCat
+            tabs.addView(TextView(this).apply {
+                text = name
+                textSize = 12f
+                gravity = Gravity.CENTER
+                setPadding(dp(10), 0, dp(10), 0)
+                setTextColor(if (on) pal.onAccent else pal.text)
+                typeface = if (on) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+                background = press(if (on) pal.accent else pal.card, dp(4).toFloat())
+                setOnClickListener {
+                    it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    symCat = i
+                    renderSymbols()
+                    symScroll?.scrollTo(0, 0)
+                }
+            }, LinearLayout.LayoutParams(wrap, match).apply { rightMargin = dp(4) })
+        }
+
+        grid.removeAllViews()
+        val items = if (symCat == 0) recentSyms() else Symbols.CATEGORIES.getOrNull(symCat - 1)?.second ?: emptyList()
+        if (items.isEmpty()) {
+            grid.addView(TextView(this).apply {
+                text = "使った記号・絵文字がここに出るよ"
+                textSize = 12f
+                setTextColor(pal.sub)
+                gravity = Gravity.CENTER
+                setPadding(0, dp(30), 0, 0)
+            })
+            return
+        }
+        val perRow = 6
+        items.chunked(perRow).forEach { rowItems ->
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            for (sym in rowItems) {
+                row.addView(TextView(this).apply {
+                    text = sym
+                    textSize = 20f
+                    gravity = Gravity.CENTER
+                    setTextColor(pal.text)
+                    background = press(pal.key, dp(6).toFloat())
+                    setOnClickListener {
+                        it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        currentInputConnection?.commitText(sym, 1)
+                        lastCommit = sym
+                        lastReading = null
+                        pushRecent(sym)
+                    }
+                }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { setMargins(dp(1), dp(1), dp(1), dp(1)) })
+            }
+            repeat(perRow - rowItems.size) {
+                row.addView(View(this), LinearLayout.LayoutParams(0, dp(38), 1f))
+            }
+            grid.addView(row)
+        }
     }
 
     // 「あ A 1」を並べて、今のモードだけオレンジで表示

@@ -47,6 +47,9 @@ class Dict(private val context: Context) {
 
     // よく使う言葉の一覧（assets/common.tsv：読み<TAB>単語）
     private val common = HashMap<String, MutableList<String>>()
+
+    // 絵文字・記号（assets/emoji.tsv：読み<TAB>文字）
+    private val emoji = HashMap<String, MutableList<String>>()
     private var userVer = -1
 
     // 辞書を引いた結果のキャッシュ
@@ -103,7 +106,25 @@ class Dict(private val context: Context) {
         tmp.renameTo(dest)
     }
 
+    private fun loadTsv(name: String, into: HashMap<String, MutableList<String>>) {
+        if (into.isNotEmpty()) return
+        try {
+            context.assets.open(name).bufferedReader(Charsets.UTF_8).useLines { lines ->
+                for (line in lines) {
+                    if (line.isBlank() || line.startsWith("#")) continue
+                    val p = line.split("\t")
+                    if (p.size < 2) continue
+                    val r = p[0].trim()
+                    val w = p[1].trim()
+                    if (r.isNotEmpty() && w.isNotEmpty()) synchronized(into) { into.getOrPut(r) { ArrayList() }.add(w) }
+                }
+            }
+        } catch (e: Exception) {
+        }
+    }
+
     private fun loadCommon() {
+        loadTsv("emoji.tsv", emoji)
         if (common.isNotEmpty()) return
         try {
             context.assets.open("common.tsv").bufferedReader(Charsets.UTF_8).useLines { lines ->
@@ -302,6 +323,9 @@ class Dict(private val context: Context) {
 
             // 4. 読み全体に一致する単語
             words(reading, 6).forEach { add(it, n) }
+
+            // 4.5 絵文字・記号（はーと → ❤️、やじるし → → など）
+            synchronized(emoji) { emoji[reading]?.toList() }?.forEach { add(it, n) }
 
             // 4. ひらがな・カタカナ
             add(reading, n)
