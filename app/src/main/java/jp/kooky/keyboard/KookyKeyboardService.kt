@@ -423,9 +423,9 @@ class KookyKeyboardService : InputMethodService() {
 
     // ---------- キーの角度（扇形） ----------
     // 親指の付け根を中心にした扇形に並べる（手書きの図に合わせた形）
-    //  ・中心は横幅の約75％の位置（右手用。左手用は約25％）で、キーボードの下の外側
-    //  ・中心の真上の列はまっすぐ、そこから離れるほど外側（奥）へ倒れる
-    //  ・各行は中心のまわりの弧になる（真ん中が高く、両端が下がる）
+    //  ・中心は右下の角の下（右手用。左手用は左下）
+    //  ・親指側の端の列はまっすぐ、そこから離れる列ほど下がって段違いになる
+    //  ・各列は、下の段ほど親指側へずれる（キー自体は傾けない）
     //  ・最後に、はみ出す分だけ全体を縮めて枠に収める（縮みは最小限）
     private fun applyTilt(body: LinearLayout) {
         val deg = prefs().getInt("tilt_deg", 0).coerceIn(0, 12)
@@ -436,9 +436,9 @@ class KookyKeyboardService : InputMethodService() {
             val h = (b - t).toFloat()
             if (w <= 0 || h <= 0) return@addOnLayoutChangeListener
             unclip(body)
-            val px = if (left) w * 0.25f else w * 0.75f
+            val px = if (left) 0f else w
             val py = h * 1.6f
-            val span = w * 0.75f
+            val span = w
             val keys = tiltKeys(body).filter { it.width > 0 }
             val rect = android.graphics.Rect()
             data class P(val k: View, val ox: Float, val oy: Float, val nx: Float, val ny: Float, val rot: Float)
@@ -470,8 +470,8 @@ class KookyKeyboardService : InputMethodService() {
             for (q in ps) {
                 q.k.pivotX = q.k.width / 2f
                 q.k.pivotY = q.k.height / 2f
-                // キーの並び（段違いの弧）はそのままで、キー自体の傾きは逆向き（親指の方を向く）
-                q.k.rotation = -q.rot
+                // キー自体はまっすぐのまま。並び（列が段違いに下がり、下の段ほど親指側へずれる）だけ扇形にする
+                q.k.rotation = 0f
                 q.k.scaleX = sc
                 q.k.scaleY = sc
                 q.k.translationX = (w / 2 + (q.nx - midX) * sc) - q.ox
