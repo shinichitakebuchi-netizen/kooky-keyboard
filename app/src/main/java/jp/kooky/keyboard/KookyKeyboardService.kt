@@ -802,9 +802,12 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     // 数字・電話番号欄は「1」、メール・URL・パスワード欄は「A」で開く
+    // 入力欄を開いたときのモード：基本は日本語。メール・パスワードは英語、数字・電話番号は数字
+    // （ブラウザの検索バー・URL欄も日本語で開く）
     private fun startTab(info: EditorInfo?): Int {
-        val t = forcedTab(info) ?: return userTab
+        val t = forcedTab(info) ?: TAB_JA
         inputMode = t
+        userTab = t
         return t
     }
 
@@ -816,13 +819,12 @@ class KookyKeyboardService : InputMethodService() {
         if (cls == InputType.TYPE_CLASS_TEXT && (
                 v == InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS ||
                     v == InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS ||
-                    v == InputType.TYPE_TEXT_VARIATION_URI ||
                     v == InputType.TYPE_TEXT_VARIATION_PASSWORD ||
                     v == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
                     v == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
                 )
         ) return TAB_EN
-        return userTab
+        return null
     }
 
     // ---------- 片手モード ----------
@@ -857,12 +859,9 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     // 丸ボタン（strong=true はオレンジ：透過時でも見つけやすく）
+    // 片手モードの操作ボタン：丸い枠は付けず、記号だけ（全幅に戻すはオレンジで目立たせる）
     private fun roundBtn(icon: Int, strong: Boolean, onClick: () -> Unit): TextView = TextView(this).apply {
-        background = if (strong) {
-            iconBg(pal.accent, dp(24).toFloat(), icon, pal.onAccent, 24)
-        } else {
-            iconBg(pal.card, dp(24).toFloat(), icon, pal.text, 24)
-        }
+        background = iconBg(Color.TRANSPARENT, dp(24).toFloat(), icon, if (strong) pal.accent else pal.text, 32)
         setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
             onClick()
