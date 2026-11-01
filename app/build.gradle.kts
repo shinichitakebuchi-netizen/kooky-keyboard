@@ -13,6 +13,20 @@ android {
         targetSdk = 34
         versionCode = 45
         versionName = "0.45"
+
+        // ベータ版（知人への配布用）は gradle assembleDebug -Pbeta でビルドする
+        val beta = project.hasProperty("beta")
+        if (beta) versionName = versionName + "-beta"
+        buildConfigField("boolean", "IS_BETA", beta.toString())
+        buildConfigField(
+            "String", "UPDATE_URL",
+            if (beta) "\"https://github.com/shinichitakebuchi-netizen/kooky-keyboard-beta/releases/latest\""
+            else "\"https://github.com/shinichitakebuchi-netizen/kooky-keyboard/releases/latest\""
+        )
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     // 毎回同じ鍵で署名して、上書きインストールできるようにする

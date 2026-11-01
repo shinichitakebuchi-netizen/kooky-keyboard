@@ -65,6 +65,27 @@ class MainActivity : Activity() {
         scrollView.addView(col)
         setContentView(scrollView)
         showPage("top")
+        showBetaNotice()
+    }
+
+    // ベータ版を初めて開いたときのお知らせ
+    private fun showBetaNotice() {
+        if (!BuildConfig.IS_BETA) return
+        val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
+        if (prefs.getBoolean("beta_notice", false)) return
+        AlertDialog.Builder(this)
+            .setTitle("Kooky Keyboard ベータ版")
+            .setMessage(
+                "試してくれてありがとう！ これは個人が作っているテスト中のキーボードです。\n\n" +
+                    "・打った文字や定型文は、この端末の中だけで使います。外部には送りません\n" +
+                    "・例外として、マイクの長押し（AI添削）を使ったときだけ、話した文章がGoogleのGemini APIに送られます（自分のAPIキーが必要）\n" +
+                    "・パスワードなど大事な入力は、念のため普段のキーボードに切り替えて入力してください\n" +
+                    "・不具合や使いにくい所があったら、作った人に教えてください\n\n" +
+                    "新しい版は「アップデート」から入れられます。"
+            )
+            .setPositiveButton("OK") { _, _ -> prefs.edit().putBoolean("beta_notice", true).apply() }
+            .setCancelable(false)
+            .show()
     }
 
     // ---------- ページの切り替え ----------
@@ -130,7 +151,7 @@ class MainActivity : Activity() {
 
     private fun buildTop() {
         col.addView(text("KOOKY KEYBOARD", 22f, Ui.ORANGE, bold = true))
-        col.addView(text("定型文キーボード v${currentVersion()}", 12f, Ui.SUB))
+        col.addView(text("定型文キーボード v${currentVersion()}" + if (BuildConfig.IS_BETA) "（ベータ版）" else "", 12f, Ui.SUB))
 
         // 今の状態（有効・選択中か）
         val st = text("", 13f, Ui.TEXT).apply {
@@ -528,7 +549,7 @@ class MainActivity : Activity() {
 
     // ---------- アップデート ----------
 
-    private val releasesUrl = "https://github.com/shinichitakebuchi-netizen/kooky-keyboard/releases/latest"
+    private val releasesUrl = BuildConfig.UPDATE_URL
 
     private fun currentVersion(): String = try {
         packageManager.getPackageInfo(packageName, 0).versionName ?: "?"

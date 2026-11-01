@@ -10,6 +10,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    env:
+      BETA_TOKEN: ${{ secrets.BETA_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -73,3 +75,22 @@ jobs:
           tag_name: latest
           name: Latest build
           files: app/build/outputs/apk/debug/app-debug.apk
+
+      # ---- ベータ版（知人への配布用）----
+      # コミットメッセージに [beta] が入っているとき、または手動実行のときだけ公開リポジトリに置く
+      - name: Build beta APK
+        if: env.BETA_TOKEN != '' && (contains(github.event.head_commit.message, '[beta]') || github.event_name == 'workflow_dispatch')
+        run: |
+          gradle assembleDebug -Pbeta --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk kooky-keyboard-beta.apk
+
+      - name: Publish beta APK
+        if: env.BETA_TOKEN != '' && (contains(github.event.head_commit.message, '[beta]') || github.event_name == 'workflow_dispatch')
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: shinichitakebuchi-netizen/kooky-keyboard-beta
+          token: ${{ secrets.BETA_TOKEN }}
+          tag_name: latest
+          name: Kooky Keyboard ベータ版
+          make_latest: true
+          files: kooky-keyboard-beta.apk
