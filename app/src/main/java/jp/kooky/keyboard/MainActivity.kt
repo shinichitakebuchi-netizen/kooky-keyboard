@@ -285,6 +285,15 @@ class MainActivity : Activity() {
         c.addView(degSlider(), blockParams())
         c.addView(tiltDirPicker(), blockParams())
         c.addView(sizeSlider("フリックの回転（扇形の傾きに対する割合）", "flick_pct", 100, 0, 200), blockParams())
+        c.addView(text("フリックの向きの見本（オレンジが上フリック）", 12f, Ui.SUB).apply { setPadding(0, dp(10), 0, 0) })
+        c.addView(FlickPreview(this).apply {
+            clipToOutline = true
+            outlineProvider = object : android.view.ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: android.graphics.Outline) {
+                    outline.setRoundRect(0, 0, view.width, view.height, dp(10).toFloat())
+                }
+            }
+        }, blockParams())
         c.addView(text("100％で列の向きどおり、0％でまっすぐの上下左右、200％で列の向きの2倍回すよ。片手モードで左に寄せたときは、扇形もフリックも自動で左右反転するよ", 11f, Ui.SUB)
             .apply { setPadding(0, dp(6), 0, 0) })
         c.addView(text("キーを扇形の段違いに並べて、親指で押しやすくするよ。キーボードのツールバーの扇形アイコンで、角度をつける／元に戻すを切り替えられる。段違いにした分だけキーが少し小さくなるので、気になるときは高さを上げてね", 11f, Ui.SUB)
