@@ -1228,7 +1228,7 @@ class MainActivity : Activity() {
         return row
     }
 
-    // サイズ調整スライダー（5%刻み、キーボード側は次に開いたときに反映）
+    // サイズ調整スライダー（1%刻み）。細かい調整は − ＋ ボタンで1%ずつ
     private fun sizeSlider(label: String, key: String, def: Int, lo: Int, hi: Int): View {
         val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
         val box = LinearLayout(this).apply {
@@ -1236,21 +1236,24 @@ class MainActivity : Activity() {
             background = Ui.round(Ui.CARD, dp(10).toFloat())
             setPadding(dp(12), dp(10), dp(12), dp(6))
         }
-        val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val head = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
         head.addView(text(label, 14f, Ui.TEXT), LinearLayout.LayoutParams(0, wrap, 1f))
-        val valueText = text("", 14f, Ui.ORANGE, bold = true)
-        head.addView(valueText)
-        box.addView(head)
+        val valueText = text("", 14f, Ui.ORANGE, bold = true).apply {
+            gravity = Gravity.CENTER
+            minWidth = dp(52)
+        }
 
-        val steps = (hi - lo) / 5
         val start = prefs.getInt(key, def).coerceIn(lo, hi)
         valueText.text = "$start%"
         val bar = SeekBar(this).apply {
-            this.max = steps
-            progress = (start - lo) / 5
+            this.max = hi - lo
+            progress = start - lo
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {
-                    val v = lo + p * 5
+                    val v = lo + p
                     valueText.text = "$v%"
                     prefs.edit().putInt(key, v).apply()
                 }
@@ -1258,11 +1261,20 @@ class MainActivity : Activity() {
                 override fun onStopTrackingTouch(sb: SeekBar?) {}
             })
         }
+        fun stepBtn(label: String, delta: Int) = text(label, 18f, Ui.TEXT, bold = true).apply {
+            gravity = Gravity.CENTER
+            background = Ui.pressable(Ui.KEY, dp(8).toFloat())
+            setOnClickListener { bar.progress = (bar.progress + delta).coerceIn(0, bar.max) }
+        }
+        head.addView(stepBtn("−", -1), LinearLayout.LayoutParams(dp(38), dp(34)))
+        head.addView(valueText)
+        head.addView(stepBtn("＋", 1), LinearLayout.LayoutParams(dp(38), dp(34)))
+        box.addView(head)
         box.addView(bar, LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(4) })
 
         box.addView(text("標準に戻す", 11f, Ui.SUB).apply {
             setPadding(0, dp(4), 0, dp(4))
-            setOnClickListener { bar.progress = (def - lo) / 5 }
+            setOnClickListener { bar.progress = def - lo }
         })
         return box
     }
