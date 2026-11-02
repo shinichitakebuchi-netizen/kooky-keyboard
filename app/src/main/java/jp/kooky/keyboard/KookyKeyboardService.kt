@@ -486,6 +486,18 @@ class KookyKeyboardService : InputMethodService() {
             val w = (r - l).toFloat()
             val h = (b - t).toFloat()
             if (w <= 0 || h <= 0) return@addOnLayoutChangeListener
+            // 定型文・記号パネルを開いている間は扇形をやめて、まっすぐの並びに戻す（パネルにキーが重ならないように）
+            if (tab == TAB_PHRASE || symOpen) {
+                flickAngle.clear()
+                for (k in tiltKeys(body)) {
+                    k.translationX = 0f
+                    k.translationY = 0f
+                    k.scaleX = 1f
+                    k.scaleY = 1f
+                    k.rotation = 0f
+                }
+                return@addOnLayoutChangeListener
+            }
             unclip(body)
             val px = if (left) 0f else w
             val py = h * 1.6f
@@ -1003,6 +1015,7 @@ class KookyKeyboardService : InputMethodService() {
     private fun render() {
         val box = listBox ?: return
         updateModeKey()
+        keysRow?.requestLayout()
 
         val phrasesOpen = tab == TAB_PHRASE
         keysRow?.visibility = View.VISIBLE
@@ -1649,6 +1662,7 @@ class KookyKeyboardService : InputMethodService() {
         // 後ろの文字キーは隠す（扇形のときに記号の間から透けて二重に見えないように）
         for (g in listOf(jaGrid, enGrid, numGrid)) g?.visibility = View.INVISIBLE
         symPanel?.visibility = View.VISIBLE
+        keysRow?.requestLayout()
         renderSymbols()
     }
 
