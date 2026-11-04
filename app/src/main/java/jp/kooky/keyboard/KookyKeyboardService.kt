@@ -1153,6 +1153,8 @@ class KookyKeyboardService : InputMethodService() {
             val ry = y - y0
             val dx = (rx * Math.cos(ang) + ry * Math.sin(ang)).toFloat()
             val dy = (-rx * Math.sin(ang) + ry * Math.cos(ang)).toFloat()
+            // フリック入力がオフなら、どの向きに払ってもタップ扱い
+            if (!flickOn()) return 0
             if (abs(dx) < th && abs(dy) < th) return 0
             return if (abs(dx) > abs(dy)) {
                 if (dx < 0) 1 else 3
@@ -1244,7 +1246,7 @@ class KookyKeyboardService : InputMethodService() {
         val now = SystemClock.uptimeMillis()
         val opts = chars.filter { it.isNotEmpty() }
         // 同じキーを1秒以内に続けてタップしたら文字を切り替える（あ→い→う…）
-        if (isTap && toggleKey === chars && now - toggleTime < 1000 && composing.isNotEmpty()) {
+        if (toggleOn() && isTap && toggleKey === chars && now - toggleTime < 1000 && composing.isNotEmpty()) {
             toggleIdx = (toggleIdx + 1) % opts.size
             composing.setLength(composing.length - 1)
             composing.append(opts[toggleIdx])
@@ -1283,6 +1285,10 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     // 入力欄の下線つき文字を更新（候補選択中は候補＋残りを表示）
+    // 入力のしかた（設定）：フリック入力／同じキーの連続タップで文字を切り替える（あ→い→う）
+    private fun flickOn() = prefs().getBoolean("flick_on", true)
+    private fun toggleOn() = prefs().getBoolean("toggle_on", true)
+
     // ライブ変換：打っている途中から、読み全体を変換した結果を入力欄に出す
     private fun liveOn() = prefs().getBoolean("live_conv", true)
 
@@ -1573,7 +1579,7 @@ class KookyKeyboardService : InputMethodService() {
         val ic = currentInputConnection ?: return
         val now = SystemClock.uptimeMillis()
         val opts = chars.filter { it.isNotEmpty() }
-        if (isTap && toggleKey === chars && now - toggleTime < 1000) {
+        if (toggleOn() && isTap && toggleKey === chars && now - toggleTime < 1000) {
             // 同じキーの連続タップ：直前の1文字を次の文字に置き換える（a→b→c）
             toggleIdx = (toggleIdx + 1) % opts.size
             val next = opts[toggleIdx]

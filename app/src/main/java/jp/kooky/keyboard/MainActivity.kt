@@ -420,6 +420,19 @@ class MainActivity : Activity() {
         col.addView(button("＋ 単語を登録", Ui.ORANGE) { editUserWord(null) }, blockParams())
         renderUserWords()
 
+        col.addView(section("入力のしかた"))
+        val pr = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
+        pr.registerOnSharedPreferenceChangeListener(liveSync)
+        col.addView(text("フリック入力", 13f, Ui.TEXT).apply { setPadding(0, dp(6), 0, 0) })
+        col.addView(choice2("flick_s", if (pr.getBoolean("flick_on", true)) "on" else "off",
+            listOf("on" to "オン", "off" to "オフ")), blockParams())
+        col.addView(text("オフにすると、どの向きに払ってもタップと同じになるよ", 11f, Ui.SUB).apply { setPadding(0, dp(4), 0, 0) })
+        col.addView(text("同じキーを続けてタップ", 13f, Ui.TEXT).apply { setPadding(0, dp(12), 0, 0) })
+        col.addView(choice2("toggle_s", if (pr.getBoolean("toggle_on", true)) "on" else "off",
+            listOf("on" to "あ→い→う", "off" to "あああ")), blockParams())
+        col.addView(text("「あ→い→う」は、同じキーを続けてタップすると文字が切り替わる（ケータイ打ち）。「あああ」は、タップするたびに同じ文字が増える。両方オフにすると あ段しか打てないので、片方は必ずオンになるよ", 11f, Ui.SUB)
+            .apply { setPadding(0, dp(4), 0, 0) })
+
         col.addView(section("ライブ変換"))
         col.addView(liveToggle(), blockParams())
         col.addView(text("オンにすると、打っている途中から漢字に変換して表示するよ。確定キーでそのまま確定、変換キーで別の候補を選べる", 11f, Ui.SUB)
@@ -1123,7 +1136,22 @@ class MainActivity : Activity() {
     }
 
     private val liveSync = android.content.SharedPreferences.OnSharedPreferenceChangeListener { p, k ->
-        if (k == "live_conv_s") p.edit().putBoolean("live_conv", p.getString(k, "on") == "on").apply()
+        when (k) {
+            "live_conv_s" -> p.edit().putBoolean("live_conv", p.getString(k, "on") == "on").apply()
+            "flick_s", "toggle_s" -> {
+                val flick = p.getString("flick_s", if (p.getBoolean("flick_on", true)) "on" else "off") == "on"
+                val toggle = p.getString("toggle_s", if (p.getBoolean("toggle_on", true)) "on" else "off") == "on"
+                // 両方オフだと あ段しか打てないので、今変えなかった方をオンに戻す
+                if (!flick && !toggle) {
+                    val other = if (k == "flick_s") "toggle_s" else "flick_s"
+                    p.edit().putString(other, "on").apply()
+                    toast("両方オフだと あ段しか打てないので、もう片方をオンにしたよ")
+                    showPage(page)
+                    return@OnSharedPreferenceChangeListener
+                }
+                p.edit().putBoolean("flick_on", flick).putBoolean("toggle_on", toggle).apply()
+            }
+        }
     }
 
     // キーの角度（0〜12度、1度刻み）
