@@ -46,19 +46,20 @@ class Palette(
 )
 
 object Themes {
-    // 墨（標準）：縁・庵とそろえた 墨・生成り・朱
+    // 藍（標準）：縁と同じ 日本の伝統色（藍色・鳥の子色・利休鼠・紅緋）
+    // キーは塗らず、利休鼠の細い罫線だけで区切る
     val SUMI = Palette(
-        "sumi", "墨",
-        Color.parseColor("#1E2024"), Color.parseColor("#25272C"), Color.parseColor("#2C2E34"),
-        Color.parseColor("#E0632F"), Color.parseColor("#ECE7DC"), Color.parseColor("#8C8F96"), Color.parseColor("#F3EEE3"),
-        wa = true, line = Color.parseColor("#3A3D44")
+        "sumi", "藍",
+        Iro.AI, Iro.AI, Iro.AI,
+        Iro.BENIHI, Iro.TORINOKO, Iro.KAMENOZOKI_70, Iro.AI,
+        wa = true, line = Iro.RIKYUNEZUMI
     )
-    // 生成り：和紙の地に墨の文字と朱
+    // 鳥の子：鳥の子色の地に藍色の文字と紅緋
     val KINARI = Palette(
-        "kinari", "生成り",
-        Color.parseColor("#E8E2D5"), Color.parseColor("#DDD6C7"), Color.parseColor("#F4F0E7"),
-        Color.parseColor("#D2542A"), Color.parseColor("#2A2A2A"), Color.parseColor("#7A766E"), Color.parseColor("#F4F0E7"),
-        wa = true, line = Color.parseColor("#CBC3B2")
+        "kinari", "鳥の子",
+        Iro.TORINOKO, Iro.TORINOKO, Iro.TORINOKO,
+        Iro.BENIHI, Iro.AI, Iro.RIKYUNEZUMI, Iro.TORINOKO,
+        wa = true, line = Iro.RIKYUNEZUMI
     )
     val NAVY = Palette(
         "navy", "ネイビー",
@@ -78,4 +79,16 @@ object Themes {
     val ALL = listOf(SUMI, KINARI, NAVY, BLACK, LIGHT)
 
     fun of(name: String?): Palette = ALL.firstOrNull { it.name == name } ?: SUMI
+}
+
+// 日本の伝統色（色名は「日本の内装材料辞典 › 日本の色 › 伝統色」、値は Wikipedia「Traditional colors of Japan」、鴇色のみ irocore.com）
+// ここにない色は足さない
+object Iro {
+    val AI = Color.parseColor("#264348")            // 藍色：背景
+    val TORINOKO = Color.parseColor("#E2BE9F")      // 鳥の子色：文字（主）
+    val KAMENOZOKI = Color.parseColor("#C6C2B6")    // 甕覗
+    val KAMENOZOKI_70 = Color.parseColor("#B3C6C2B6") // 甕覗 不透明度70%：文字（補足）
+    val RIKYUNEZUMI = Color.parseColor("#656255")   // 利休鼠：罫線・枠線
+    val BENIHI = Color.parseColor("#F35336")        // 紅緋：見出し・強調
+    val WAKATAKE = Color.parseColor("#6B9362")      // 若竹色：稼働中などの状態
 }

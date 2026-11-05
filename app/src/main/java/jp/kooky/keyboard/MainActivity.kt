@@ -11,6 +11,7 @@ import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.ClipDrawable
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
@@ -28,6 +29,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
 import android.widget.EditText
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
@@ -54,14 +58,16 @@ class MainActivity : Activity() {
     private val match = ViewGroup.LayoutParams.MATCH_PARENT
     private val wrap = ViewGroup.LayoutParams.WRAP_CONTENT
 
-    // ───────── 色（墨・生成り・薄墨・朱）縁・庵とそろえる ─────────
-    private val SUMI = Color.parseColor("#1E2024")      // 背景
-    private val KINARI = Color.parseColor("#ECE7DC")    // 文字
-    private val USUZUMI = Color.parseColor("#8C8F96")   // 補足の文字
-    private val LINE_C = Color.parseColor("#3A3D44")    // 罫線
-    private val SHU = Color.parseColor("#E0632F")       // 朱（見出し・強調）
-    private val CARD = Color.parseColor("#232529")      // 入力欄などの面（ほぼ背景と同じ）
-    private val KEYC = Color.parseColor("#2A2C31")      // 枠だけのボタン（目印用の値）
+    // ───────── 色：日本の伝統色（縁とそろえる）。名前は役割で、値は Iro にまとめてある ─────────
+    private val SUMI = Iro.AI                 // 背景：藍色
+    private val KINARI = Iro.TORINOKO         // 文字（主）：鳥の子色
+    private val USUZUMI = Iro.KAMENOZOKI_70   // 文字（補足）：甕覗 70%
+    private val LINE_C = Iro.RIKYUNEZUMI      // 罫線・枠線：利休鼠
+    private val SHU = Iro.BENIHI              // 見出し・強調：紅緋
+    private val ACTIVE = Iro.WAKATAKE         // 稼働中：若竹色
+    // 部品の目印（色としては使わない。CARD＝入力欄、KEYC＝枠だけのボタン）
+    private val CARD = 0x01000001
+    private val KEYC = 0x01000002
     private val MINCHO: Typeface = Typeface.create(Typeface.SERIF, Typeface.NORMAL)
     private val MINCHO_BOLD: Typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
 
@@ -73,28 +79,42 @@ class MainActivity : Activity() {
         cornerRadius = dp(2).toFloat()
         when (color) {
             SHU -> setColor(KINARI)
-            KEYC -> { setColor(Color.TRANSPARENT); setStroke(dp(1), LINE_C) }
-            CARD -> { setColor(CARD); setStroke(dp(1), LINE_C) }
+            KEYC, CARD -> { setColor(Color.TRANSPARENT); setStroke(dp(1), LINE_C) }
             else -> setColor(color)
         }
     }
 
     private fun press(color: Int, r: Float): Drawable =
-        RippleDrawable(ColorStateList.valueOf(0x22ECE7DC), box(color, r), ColorDrawable(Color.WHITE))
+        RippleDrawable(ColorStateList.valueOf((0x22 shl 24) or (KINARI and 0x00FFFFFF)), box(color, r), ColorDrawable(Color.WHITE))
 
     // 下だけの細い罫線
     private fun hairlineBottom(thin: Boolean): Drawable {
         val l = LayerDrawable(arrayOf(ColorDrawable(LINE_C)))
         l.setLayerGravity(0, Gravity.BOTTOM or Gravity.FILL_HORIZONTAL)
-        l.setLayerHeight(0, if (thin) maxOf(1, dp(1) / 2) else dp(1))
+        l.setLayerHeight(0, if (thin) maxOf(1, (resources.displayMetrics.density * 0.5f).toInt()) else dp(1))
         return l
     }
 
-    // スライダーを細い線と生成りの丸に
+    // スライダー：2dpの線（未選択＝利休鼠、選択＝鳥の子色）と、背景色の丸（直径16dp・鳥の子色の1.5dp枠）だけ
     private fun SeekBar.sumi() {
-        progressTintList = ColorStateList.valueOf(KINARI)
-        progressBackgroundTintList = ColorStateList.valueOf(LINE_C)
-        thumbTintList = ColorStateList.valueOf(KINARI)
+        val bgLine = GradientDrawable().apply { setColor(LINE_C) }
+        val fgLine = ClipDrawable(GradientDrawable().apply { setColor(KINARI) }, Gravity.START, ClipDrawable.HORIZONTAL)
+        val track = LayerDrawable(arrayOf(bgLine, fgLine))
+        track.setId(0, android.R.id.background)
+        track.setId(1, android.R.id.progress)
+        for (i in 0..1) {
+            track.setLayerGravity(i, Gravity.CENTER_VERTICAL or Gravity.FILL_HORIZONTAL)
+            track.setLayerHeight(i, dp(2))
+        }
+        progressDrawable = track
+        thumb = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(SUMI)
+            setStroke((resources.displayMetrics.density * 1.5f).toInt().coerceAtLeast(1), KINARI)
+            setSize(dp(16), dp(16))
+        }
+        splitTrack = false
+        background = null
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -254,7 +274,7 @@ class MainActivity : Activity() {
             setOnClickListener { onClick() }
         }
         val texts = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        texts.addView(text(title, 16f, KINARI))
+        texts.addView(text(title, 15f, KINARI))
         texts.addView(text(sub, 12f, USUZUMI).apply { setPadding(0, dp(4), 0, 0) })
         row.addView(texts, LinearLayout.LayoutParams(0, wrap, 1f))
         row.addView(text("›", 20f, LINE_C))
@@ -411,11 +431,12 @@ class MainActivity : Activity() {
         return frame
     }
 
-    // カラフルな縞模様＋文字。透過率を上げるとキーボードの後ろに見える
+    // 伝統色の縞模様＋文字。透過率を上げるとキーボードの後ろに見える
     private fun previewBackdrop(): View {
         val fl = android.widget.FrameLayout(this)
         val stripes = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val colors = listOf("#F28C28", "#F2F0EB", "#2F6FD6", "#14213D", "#E04F5F", "#3BAA6E")
+        // 紅緋・鳥の子色・新橋色・藍色・韓紅花・萌黄
+        val colors = listOf("#F35336", "#E2BE9F", "#006C7F", "#264348", "#C91F37", "#5B8930")
         for (hex in colors) {
             stripes.addView(View(this).apply { setBackgroundColor(android.graphics.Color.parseColor(hex)) },
                 LinearLayout.LayoutParams(0, match, 1f))
@@ -424,10 +445,10 @@ class MainActivity : Activity() {
         fl.addView(TextView(this).apply {
             text = "透過の確認用の背景\n綴"
             textSize = 22f
-            setTextColor(android.graphics.Color.WHITE)
-            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(KINARI)
+            typeface = MINCHO_BOLD
             gravity = Gravity.CENTER
-            setShadowLayer(6f, 0f, 2f, android.graphics.Color.BLACK)
+            setShadowLayer(6f, 0f, 2f, SUMI)
         }, android.widget.FrameLayout.LayoutParams(match, match))
         return fl
     }
@@ -834,7 +855,7 @@ class MainActivity : Activity() {
             }
             dot.background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(if (ok) Color.parseColor("#3DA35D") else SHU)
+                setColor(if (ok) ACTIVE else SHU)
             }
         }
         val st = statusText ?: return
@@ -867,8 +888,7 @@ class MainActivity : Activity() {
                 gravity = Gravity.CENTER
                 setPadding(dp(14), 0, dp(14), 0)
                 setTextColor(if (selected) SUMI else KINARI)
-                typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-                background = press(if (selected) SHU else CARD, dp(4).toFloat())
+                                background = press(if (selected) SHU else CARD, dp(4).toFloat())
                 setOnClickListener {
                     current = i
                     render()
@@ -917,7 +937,7 @@ class MainActivity : Activity() {
             text = p.label()
             setTextColor(KINARI)
             textSize = 15f
-            typeface = Typeface.DEFAULT_BOLD
+            typeface = Typeface.DEFAULT
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
         })
@@ -1203,6 +1223,31 @@ class MainActivity : Activity() {
     // 2択ボタン（オレンジが選択中）
     private fun choice2(key: String, def: String, opts: List<Pair<String, String>>): View {
         val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
+        // 入 / 切：スイッチの代わりに文字で。行全体をタップで切り替え
+        if (opts.map { it.first } == listOf("on", "off")) {
+            val tv = TextView(this).apply {
+                textSize = 15f
+                gravity = Gravity.CENTER_VERTICAL or Gravity.END
+                minHeight = dp(46)
+                letterSpacing = 0.1f
+                background = hairlineBottom(true)
+            }
+            fun paint() {
+                val on = prefs.getString(key, def) == "on"
+                val sb = SpannableStringBuilder()
+                sb.append("入", ForegroundColorSpan(if (on) SHU else LINE_C), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                sb.append(" / ", ForegroundColorSpan(LINE_C), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                sb.append("切", ForegroundColorSpan(if (on) LINE_C else KINARI), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                tv.text = sb
+            }
+            tv.setOnClickListener {
+                val on = prefs.getString(key, def) == "on"
+                prefs.edit().putString(key, if (on) "off" else "on").apply()
+                paint()
+            }
+            paint()
+            return tv
+        }
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val btns = ArrayList<Pair<TextView, String>>()
         fun paint() {
@@ -1210,7 +1255,7 @@ class MainActivity : Activity() {
             for ((tv, k) in btns) {
                 val on = k == now
                 tv.setTextColor(if (on) SUMI else KINARI)
-                tv.background = press(if (on) SHU else KEYC, dp(10).toFloat())
+                tv.background = press(if (on) SHU else KEYC, 0f)
             }
         }
         opts.forEachIndexed { i, (k, label) ->
@@ -1218,7 +1263,6 @@ class MainActivity : Activity() {
                 text = label
                 textSize = 14f
                 gravity = Gravity.CENTER
-                typeface = Typeface.DEFAULT_BOLD
                 setOnClickListener {
                     prefs.edit().putString(key, k).apply()
                     paint()
@@ -1316,7 +1360,7 @@ class MainActivity : Activity() {
                 text = label
                 textSize = 14f
                 gravity = Gravity.CENTER
-                typeface = Typeface.DEFAULT_BOLD
+                typeface = Typeface.DEFAULT
                 setOnClickListener {
                     prefs.edit().putString("nav_mode", key).apply()
                     paint()
@@ -1329,36 +1373,48 @@ class MainActivity : Activity() {
         return row
     }
 
-    // 配色の選択（墨 / 生成り / ネイビー / ブラック / ライト）。各ボタンはその配色の見本になっている
+    // 配色の選択（藍 / 鳥の子 / ネイビー / ブラック / ライト）
+    // 丸い色見本の下に小さく名前。選択中は鳥の子色の細い輪で囲む
     private fun themePicker(): View {
         val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val chips = ArrayList<Pair<TextView, Palette>>()
+        val chips = ArrayList<Pair<View, Palette>>()
         fun paint() {
             val now = Themes.of(prefs.getString("theme", "sumi"))
-            for ((tv, p) in chips) {
+            for ((v, p) in chips) {
                 val on = p === now
-                val d = box(p.bg, dp(10).toFloat())
-                d.setStroke(dp(if (on) 2 else 1), if (on) KINARI else LINE_C)
-                tv.background = d
-                tv.text = p.label
-                tv.setTextColor(p.text)
+                val ring = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(Color.TRANSPARENT)
+                    if (on) setStroke((resources.displayMetrics.density * 1.5f).toInt().coerceAtLeast(1), KINARI)
+                }
+                val dot = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(p.bg)
+                    setStroke(dp(1), if (p.bg == SUMI) LINE_C else p.accent)
+                }
+                val ld = LayerDrawable(arrayOf(ring, dot))
+                ld.setLayerInset(1, dp(5), dp(5), dp(5), dp(5))
+                v.background = ld
             }
         }
-        Themes.ALL.forEachIndexed { i, p ->
-            val tv = TextView(this).apply {
-                textSize = 12f
-                gravity = Gravity.CENTER
-                typeface = Typeface.DEFAULT_BOLD
+        Themes.ALL.forEach { p ->
+            val cell = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_HORIZONTAL
                 setOnClickListener {
                     prefs.edit().putString("theme", p.name).apply()
                     paint()
                 }
             }
-            chips.add(tv to p)
-            row.addView(tv, LinearLayout.LayoutParams(0, dp(52), 1f).apply {
-                if (i > 0) leftMargin = dp(6)
+            val sw = View(this)
+            cell.addView(sw, LinearLayout.LayoutParams(dp(44), dp(44)))
+            cell.addView(text(p.label, 11f, USUZUMI).apply {
+                gravity = Gravity.CENTER
+                setPadding(0, dp(4), 0, 0)
             })
+            chips.add(sw to p)
+            row.addView(cell, LinearLayout.LayoutParams(0, wrap, 1f))
         }
         paint()
         return row

@@ -30,15 +30,15 @@ class CropView(
     private var ready = false
 
     private val imgPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
-    private val dimPaint = Paint().apply { color = Color.argb(160, 0, 0, 0) }
+    private val dimPaint = Paint().apply { color = (0xA0 shl 24) or (Iro.AI and 0x00FFFFFF) }
     private val framePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        color = Color.parseColor("#F28C28")
+        color = Iro.BENIHI
         strokeWidth = 2.5f * resources.displayMetrics.density
     }
     private val gridPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        color = Color.argb(90, 255, 255, 255)
+        color = (0x5A shl 24) or (Iro.TORINOKO and 0x00FFFFFF)
         strokeWidth = 1f * resources.displayMetrics.density
     }
     private val dimPath = Path()
@@ -117,7 +117,7 @@ class CropView(
     }
 
     override fun onDraw(canvas: Canvas) {
-        canvas.drawColor(Color.parseColor("#0B1428"))
+        canvas.drawColor(Iro.AI)
         canvas.save()
         canvas.translate(tx, ty)
         canvas.scale(s, s)

@@ -16,23 +16,23 @@ class FlickPreview(context: Context) : View(context), SharedPreferences.OnShared
     private val prefs = context.getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
     private val d = resources.displayMetrics.density
 
-    private val keyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Ui.KEY }
+    private val keyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Iro.RIKYUNEZUMI; style = Paint.Style.STROKE; strokeWidth = 1f * d }
     private val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Ui.SUB; strokeWidth = 2f * d; style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND
+        color = Iro.KAMENOZOKI_70; strokeWidth = 2f * d; style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND
     }
     private val upPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Ui.ORANGE; strokeWidth = 2.5f * d; style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND
+        color = Iro.BENIHI; strokeWidth = 2.5f * d; style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND
     }
-    private val headPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Ui.SUB; style = Paint.Style.FILL }
-    private val upHeadPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Ui.ORANGE; style = Paint.Style.FILL }
+    private val headPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Iro.KAMENOZOKI_70; style = Paint.Style.FILL }
+    private val upHeadPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Iro.BENIHI; style = Paint.Style.FILL }
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Ui.TEXT; textSize = 18f * d; textAlign = Paint.Align.CENTER; isFakeBoldText = true
+        color = Iro.TORINOKO; textSize = 18f * d; textAlign = Paint.Align.CENTER; isFakeBoldText = false
     }
     private val subPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Ui.SUB; textSize = 11f * d; textAlign = Paint.Align.CENTER
+        color = Iro.KAMENOZOKI_70; textSize = 11f * d; textAlign = Paint.Align.CENTER
     }
     private val degPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Ui.ORANGE; textSize = 13f * d; textAlign = Paint.Align.CENTER; isFakeBoldText = true
+        color = Iro.BENIHI; textSize = 13f * d; textAlign = Paint.Align.CENTER; isFakeBoldText = false
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -55,7 +55,7 @@ class FlickPreview(context: Context) : View(context), SharedPreferences.OnShared
     }
 
     override fun onDraw(canvas: Canvas) {
-        canvas.drawColor(Ui.CARD)
+        canvas.drawColor(Iro.AI)
         val deg = prefs.getInt("tilt_deg", 0).coerceIn(0, 12)
         val on = prefs.getBoolean("tilt_on", true) && deg > 0
         val left = prefs.getString("tilt_dir", "right") == "left"
@@ -85,7 +85,7 @@ class FlickPreview(context: Context) : View(context), SharedPreferences.OnShared
             canvas.restore()
 
             // キー（キー自体はまっすぐ）
-            canvas.drawRoundRect(RectF(x - ks / 2, cy - ks / 2, x + ks / 2, cy + ks / 2), 8f * d, 8f * d, keyPaint)
+            canvas.drawRoundRect(RectF(x - ks / 2, cy - ks / 2, x + ks / 2, cy + ks / 2), 2f * d, 2f * d, keyPaint)
             canvas.drawText(labels[i], x, cy + 6f * d, textPaint)
 
             // 上の矢印（オレンジ）はキーの上に重ねる
