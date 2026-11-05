@@ -68,8 +68,10 @@ class MainActivity : Activity() {
     // 部品の目印（色としては使わない。CARD＝入力欄、KEYC＝枠だけのボタン）
     private val CARD = 0x01000001
     private val KEYC = 0x01000002
-    private val MINCHO: Typeface = Typeface.create(Typeface.SERIF, Typeface.NORMAL)
-    private val MINCHO_BOLD: Typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
+    // 文字のフォント（設定の「文字」で選ぶ。0=明朝（標準） 1=Kaisei Tokumin 2=Yuji Syuku）
+    private var fontIdx = 0
+    private val MINCHO: Typeface get() = AppFonts.typeface(this, fontIdx)
+    private val MINCHO_BOLD: Typeface get() = AppFonts.bold(this, fontIdx)
 
     // 表題の右の「● 状態」
     private var topState: Pair<TextView, View>? = null
@@ -119,6 +121,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        fontIdx = AppFonts.current(this)
         store = PhraseStore(this)
         cats = store.load()
         window.statusBarColor = SUMI
@@ -184,7 +187,9 @@ class MainActivity : Activity() {
         // 見た目ページだけ、キーボードを画面の上に重ねて出す（後ろの背景が透けて見えるように）
         if (p == "look") {
             window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
-            setContentView(buildLookRoot())
+            val root = buildLookRoot()
+            AppFonts.apply(root, this, fontIdx)
+            setContentView(root)
             return
         }
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
@@ -204,6 +209,7 @@ class MainActivity : Activity() {
         }
         updateStatus()
         updateMicStatus()
+        AppFonts.apply(col, this, fontIdx)
     }
 
     @Deprecated("Deprecated in Java")
@@ -396,6 +402,11 @@ class MainActivity : Activity() {
         c.addView(section("色"))
         c.addView(themePicker(), blockParams())
 
+        c.addView(section("文字"))
+        c.addView(fontPicker(), blockParams())
+        c.addView(text("Kaisei Tokumin・Yuji Syuku は SIL Open Font License 1.1 の無料フォントです。", 11f, USUZUMI)
+            .apply { setPadding(0, dp(8), 0, 0) })
+
         c.addView(section("ナビゲーションバー（画面下の ⌨ ∨ のバー）"))
         c.addView(navPicker(), blockParams())
         c.addView(text("「透明」はキーボードの背景（色・画像）をバーの裏まで伸ばすよ。端末によっては効かないことがあるので、そのときは「キーボードと同じ色」に戻してね", 11f, USUZUMI)
@@ -410,7 +421,7 @@ class MainActivity : Activity() {
         c.addView(degSlider(), blockParams())
         c.addView(tiltDirPicker(), blockParams())
         c.addView(sizeSlider("フリックの回転（扇形の傾きに対する割合）", "flick_pct", 100, 0, 200), blockParams())
-        c.addView(text("フリックの向きの見本（オレンジが上フリック）", 12f, USUZUMI).apply { setPadding(0, dp(10), 0, 0) })
+        c.addView(text("フリックの向きの見本（紅緋が上フリック）", 12f, USUZUMI).apply { setPadding(0, dp(10), 0, 0) })
         c.addView(FlickPreview(this).apply {
             clipToOutline = true
             outlineProvider = object : android.view.ViewOutlineProvider() {
@@ -1371,6 +1382,48 @@ class MainActivity : Activity() {
         }
         paint()
         return row
+    }
+
+    // 文字の選択：3つを縦に並べ、各行に「綴　つづり」をそのフォントで表示、右に小さくフォント名
+    // 選択中は鳥の子色の細い枠、ほかは利休鼠の細い枠。行全体をタップで切り替え、すぐ画面に反映
+    private fun fontPicker(): View {
+        val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val rows = ArrayList<View>()
+        fun paint() {
+            rows.forEachIndexed { i, r ->
+                r.background = GradientDrawable().apply {
+                    cornerRadius = dp(2).toFloat()
+                    setColor(Color.TRANSPARENT)
+                    setStroke(dp(1), if (i == fontIdx) KINARI else LINE_C)
+                }
+            }
+        }
+        AppFonts.names.forEachIndexed { i, name ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(16), dp(12), dp(16), dp(12))
+                setOnClickListener {
+                    fontIdx = i
+                    prefs.edit().putInt(AppFonts.PREF_KEY, i).apply()
+                    paint()
+                    AppFonts.apply(window.decorView, this@MainActivity, i)
+                }
+            }
+            row.addView(TextView(this).apply {
+                text = "綴　つづり"
+                textSize = 22f
+                setTextColor(KINARI)
+                typeface = AppFonts.typeface(this@MainActivity, i)
+                tag = AppFonts.KEEP
+            }, LinearLayout.LayoutParams(0, wrap, 1f))
+            row.addView(text(name, 12f, USUZUMI))
+            rows.add(row)
+            box.addView(row, LinearLayout.LayoutParams(match, wrap).apply { if (i > 0) topMargin = dp(8) })
+        }
+        paint()
+        return box
     }
 
     // 配色の選択（藍 / 鳥の子 / ネイビー / ブラック / ライト）

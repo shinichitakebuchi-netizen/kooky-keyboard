@@ -35,6 +35,10 @@ class FlickPreview(context: Context) : View(context), SharedPreferences.OnShared
         color = Iro.BENIHI; textSize = 13f * d; textAlign = Paint.Align.CENTER; isFakeBoldText = false
     }
 
+    init {
+        applyFont()
+    }
+
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val w = MeasureSpec.getSize(widthMeasureSpec)
         setMeasuredDimension(w, (150 * d).toInt())
@@ -51,7 +55,16 @@ class FlickPreview(context: Context) : View(context), SharedPreferences.OnShared
     }
 
     override fun onSharedPreferenceChanged(p: SharedPreferences?, key: String?) {
-        if (key == "tilt_deg" || key == "tilt_dir" || key == "flick_pct" || key == "tilt_on") invalidate()
+        if (key == AppFonts.PREF_KEY) applyFont()
+        if (key == "tilt_deg" || key == "tilt_dir" || key == "flick_pct" || key == "tilt_on" || key == AppFonts.PREF_KEY) invalidate()
+    }
+
+    // 設定の「文字」で選んだフォントを、描く文字に当てる（変わったときだけ読み直す）
+    private fun applyFont() {
+        val tf = AppFonts.typeface(context, AppFonts.current(context))
+        textPaint.typeface = tf
+        subPaint.typeface = tf
+        degPaint.typeface = tf
     }
 
     override fun onDraw(canvas: Canvas) {
