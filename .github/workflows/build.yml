@@ -91,6 +91,6 @@ jobs:
           repository: shinichitakebuchi-netizen/kooky-keyboard-beta
           token: ${{ secrets.BETA_TOKEN }}
           tag_name: latest
-          name: Kooky Keyboard ベータ版
+          name: 綴 ベータ版
           make_latest: true
           files: kooky-keyboard-beta.apk

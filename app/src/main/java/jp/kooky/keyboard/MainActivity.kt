@@ -74,7 +74,7 @@ class MainActivity : Activity() {
         val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
         if (prefs.getBoolean("beta_notice", false)) return
         AlertDialog.Builder(this)
-            .setTitle("Kooky Keyboard ベータ版")
+            .setTitle("綴 ベータ版")
             .setMessage(
                 "試してくれてありがとう！ これは個人が作っているテスト中のキーボードです。\n\n" +
                     "・打った文字や定型文は、この端末の中だけで使います。外部には送りません\n" +
@@ -150,8 +150,8 @@ class MainActivity : Activity() {
     }
 
     private fun buildTop() {
-        col.addView(text("KOOKY KEYBOARD", 22f, Ui.ORANGE, bold = true))
-        col.addView(text("定型文キーボード v${currentVersion()}" + if (BuildConfig.IS_BETA) "（ベータ版）" else "", 12f, Ui.SUB))
+        col.addView(text("綴", 30f, Ui.ORANGE, bold = true))
+        col.addView(text("つづり　v${currentVersion()}" + if (BuildConfig.IS_BETA) "（ベータ版）" else "", 12f, Ui.SUB))
 
         // 今の状態（有効・選択中か）
         val st = text("", 13f, Ui.TEXT).apply {
@@ -338,7 +338,7 @@ class MainActivity : Activity() {
         }
         fl.addView(stripes, android.widget.FrameLayout.LayoutParams(match, match))
         fl.addView(TextView(this).apply {
-            text = "透過の確認用の背景\nKOOKY KEYBOARD"
+            text = "透過の確認用の背景\n綴"
             textSize = 22f
             setTextColor(android.graphics.Color.WHITE)
             typeface = Typeface.DEFAULT_BOLD
