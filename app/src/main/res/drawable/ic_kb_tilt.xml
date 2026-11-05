@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Kooky Keyboard 手作りアイコン：tilt（扇形・段違いのキー） -->
+<!-- 綴 手作りアイコン：tilt（弧に並ぶキー＝扇形） -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp" android:height="24dp"
     android:viewportWidth="24" android:viewportHeight="24">
     <path android:fillColor="#00000000" android:strokeColor="#FFFFFFFF" android:strokeWidth="2"
         android:strokeLineCap="round" android:strokeLineJoin="round"
-        android:pathData="M15.5,3.5h4a1,1 0 0 1 1,1v4a1,1 0 0 1 -1,1h-4a1,1 0 0 1 -1,-1v-4a1,1 0 0 1 1,-1z" />
+        android:pathData="M3.8,11.8h2.6a1,1 0 0 1 1,1v2.6a1,1 0 0 1 -1,1h-2.6a1,1 0 0 1 -1,-1v-2.6a1,1 0 0 1 1,-1z" />
     <path android:fillColor="#00000000" android:strokeColor="#FFFFFFFF" android:strokeWidth="2"
         android:strokeLineCap="round" android:strokeLineJoin="round"
-        android:pathData="M9,7h4a1,1 0 0 1 1,1v4a1,1 0 0 1 -1,1h-4a1,1 0 0 1 -1,-1v-4a1,1 0 0 1 1,-1z" />
+        android:pathData="M10.7,7.8h2.6a1,1 0 0 1 1,1v2.6a1,1 0 0 1 -1,1h-2.6a1,1 0 0 1 -1,-1v-2.6a1,1 0 0 1 1,-1z" />
     <path android:fillColor="#00000000" android:strokeColor="#FFFFFFFF" android:strokeWidth="2"
         android:strokeLineCap="round" android:strokeLineJoin="round"
-        android:pathData="M3.5,11.5h4a1,1 0 0 1 1,1v4a1,1 0 0 1 -1,1h-4a1,1 0 0 1 -1,-1v-4a1,1 0 0 1 1,-1z" />
+        android:pathData="M17.6,11.8h2.6a1,1 0 0 1 1,1v2.6a1,1 0 0 1 -1,1h-2.6a1,1 0 0 1 -1,-1v-2.6a1,1 0 0 1 1,-1z" />
     <path android:fillColor="#00000000" android:strokeColor="#FFFFFFFF" android:strokeWidth="2"
-        android:strokeLineCap="round" android:pathData="M4,21c5,-1 11,-5 16,-9" />
+        android:strokeLineCap="round" android:pathData="M9,19.5A3.5,3.5 0 0 1 15,19.5" />
 </vector>
