@@ -7,6 +7,9 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
+import android.content.res.ColorStateList
+import android.graphics.drawable.RippleDrawable
+import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.LayerDrawable
 import android.inputmethodservice.InputMethodService
@@ -131,8 +134,23 @@ class KookyKeyboardService : InputMethodService() {
     private var voiceAi = false // true＝AI添削モード（長押しで開始）
 
     // 押したときの波紋（ライトは暗め、それ以外は明るめ）
-    private fun press(color: Int, radius: Float) =
-        Ui.pressable(keyColor(color), radius, if (pal === Themes.LIGHT) 0x22000000 else 0x33FFFFFF)
+    private fun press(color: Int, radius: Float): Drawable {
+        val light = pal === Themes.LIGHT || pal === Themes.KINARI
+        val rip = if (light) 0x22000000 else 0x33FFFFFF
+        if (!pal.wa) return Ui.pressable(keyColor(color), radius, rip)
+        // 和の配色：角はほぼ四角、キーには細い罫線（朱・透明のものは線なし）
+        val d = GradientDrawable().apply {
+            setColor(keyColor(color))
+            cornerRadius = minOf(radius, dp(3).toFloat())
+            if (color == pal.key || color == pal.card) setStroke(maxOf(1, dp(1) / 2), keyColor(pal.line))
+        }
+        return RippleDrawable(ColorStateList.valueOf(rip), d, null)
+    }
+
+    // 文字の書体：和の配色では明朝
+    private fun tf(bold: Boolean): Typeface =
+        if (pal.wa) Typeface.create(Typeface.SERIF, if (bold) Typeface.BOLD else Typeface.NORMAL)
+        else if (bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
 
     // 手作りアイコンを背景の真ん中に重ねる（押したときの波紋もそのまま）
     private fun iconBg(color: Int, radius: Float, icon: Int, tint: Int, sizeDp: Int = 22): Drawable {
@@ -605,7 +623,7 @@ class KookyKeyboardService : InputMethodService() {
             }
             w.navigationBarColor = if (floating || clear) Color.TRANSPARENT else (0xFF shl 24) or (pal.bg and 0x00FFFFFF)
             if (Build.VERSION.SDK_INT >= 29) w.isNavigationBarContrastEnforced = false
-            val light = !floating && pal === Themes.LIGHT
+            val light = !floating && (pal === Themes.LIGHT || pal === Themes.KINARI)
             if (Build.VERSION.SDK_INT >= 30) {
                 val flag = android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
                 w.insetsController?.setSystemBarsAppearance(if (light) flag else 0, flag)
@@ -1050,7 +1068,7 @@ class KookyKeyboardService : InputMethodService() {
                 text = c.name
                 setTextColor(pal.accent)
                 textSize = 12f
-                typeface = Typeface.DEFAULT_BOLD
+                typeface = tf(true)
                 setPadding(dp(4), dp(8), 0, dp(4))
             })
             c.phrases.chunked(2).forEach { pair ->
@@ -1094,7 +1112,7 @@ class KookyKeyboardService : InputMethodService() {
             text = p.label()
             setTextColor(pal.text)
             textSize = 13f
-            typeface = Typeface.DEFAULT_BOLD
+            typeface = tf(true)
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
         })
@@ -1469,6 +1487,7 @@ class KookyKeyboardService : InputMethodService() {
                 gravity = Gravity.CENTER
                 setPadding(dp(10), 0, dp(10), 0)
                 setTextColor(if (on) pal.onAccent else pal.text)
+                typeface = tf(on)
                 background = press(if (on) pal.accent else pal.card, dp(4).toFloat())
                 setOnClickListener {
                     it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -1692,7 +1711,7 @@ class KookyKeyboardService : InputMethodService() {
                 gravity = Gravity.CENTER
                 setPadding(dp(10), 0, dp(10), 0)
                 setTextColor(if (on) pal.onAccent else pal.text)
-                typeface = if (on) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+                typeface = tf(on)
                 background = press(if (on) pal.accent else pal.card, dp(4).toFloat())
                 setOnClickListener {
                     it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -1771,6 +1790,7 @@ class KookyKeyboardService : InputMethodService() {
         gravity = Gravity.CENTER
         setTextColor(if (color == pal.accent) pal.onAccent else pal.text)
         background = press(color, dp(8).toFloat())
+        typeface = tf(false)
     }
 
     private fun keyParams(weight: Float) = LinearLayout.LayoutParams(0, match, weight).apply {
@@ -1821,7 +1841,7 @@ class KookyKeyboardService : InputMethodService() {
         val st = TextView(this).apply {
             textSize = 13f
             setTextColor(pal.accent)
-            typeface = Typeface.DEFAULT_BOLD
+            typeface = tf(true)
         }
         panel.addView(st)
         val sv = ScrollView(this)

@@ -1329,7 +1329,7 @@ class MainActivity : Activity() {
         return row
     }
 
-    // 配色の選択（墨 / ネイビー / ブラック / ライト）。各ボタンはその配色の見本になっている
+    // 配色の選択（墨 / 生成り / ネイビー / ブラック / ライト）。各ボタンはその配色の見本になっている
     private fun themePicker(): View {
         val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -1347,7 +1347,7 @@ class MainActivity : Activity() {
         }
         Themes.ALL.forEachIndexed { i, p ->
             val tv = TextView(this).apply {
-                textSize = 14f
+                textSize = 12f
                 gravity = Gravity.CENTER
                 typeface = Typeface.DEFAULT_BOLD
                 setOnClickListener {

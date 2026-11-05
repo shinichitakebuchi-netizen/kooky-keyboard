@@ -39,15 +39,26 @@ class Palette(
     val accent: Int,
     val text: Int,
     val sub: Int,
-    val onAccent: Int
+    val onAccent: Int,
+    // 和の見た目（角をほぼ四角に・細い罫線・明朝の文字）
+    val wa: Boolean = false,
+    val line: Int = 0
 )
 
 object Themes {
     // 墨（標準）：縁・庵とそろえた 墨・生成り・朱
     val SUMI = Palette(
         "sumi", "墨",
-        Color.parseColor("#1E2024"), Color.parseColor("#26282D"), Color.parseColor("#2E3036"),
-        Color.parseColor("#E0632F"), Color.parseColor("#ECE7DC"), Color.parseColor("#8C8F96"), Color.parseColor("#1E2024")
+        Color.parseColor("#1E2024"), Color.parseColor("#25272C"), Color.parseColor("#2C2E34"),
+        Color.parseColor("#E0632F"), Color.parseColor("#ECE7DC"), Color.parseColor("#8C8F96"), Color.parseColor("#F3EEE3"),
+        wa = true, line = Color.parseColor("#3A3D44")
+    )
+    // 生成り：和紙の地に墨の文字と朱
+    val KINARI = Palette(
+        "kinari", "生成り",
+        Color.parseColor("#E8E2D5"), Color.parseColor("#DDD6C7"), Color.parseColor("#F4F0E7"),
+        Color.parseColor("#D2542A"), Color.parseColor("#2A2A2A"), Color.parseColor("#7A766E"), Color.parseColor("#F4F0E7"),
+        wa = true, line = Color.parseColor("#CBC3B2")
     )
     val NAVY = Palette(
         "navy", "ネイビー",
@@ -64,7 +75,7 @@ object Themes {
         Color.parseColor("#F2F0EB"), Color.parseColor("#E2DFD8"), Color.WHITE,
         Color.parseColor("#F28C28"), Color.parseColor("#1E1E1E"), Color.parseColor("#6B6B6B"), Color.parseColor("#1E1E1E")
     )
-    val ALL = listOf(SUMI, NAVY, BLACK, LIGHT)
+    val ALL = listOf(SUMI, KINARI, NAVY, BLACK, LIGHT)
 
     fun of(name: String?): Palette = ALL.firstOrNull { it.name == name } ?: SUMI
 }
