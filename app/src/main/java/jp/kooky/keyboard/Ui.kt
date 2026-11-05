@@ -43,6 +43,12 @@ class Palette(
 )
 
 object Themes {
+    // 墨（標準）：縁・庵とそろえた 墨・生成り・朱
+    val SUMI = Palette(
+        "sumi", "墨",
+        Color.parseColor("#1E2024"), Color.parseColor("#26282D"), Color.parseColor("#2E3036"),
+        Color.parseColor("#E0632F"), Color.parseColor("#ECE7DC"), Color.parseColor("#8C8F96"), Color.parseColor("#1E2024")
+    )
     val NAVY = Palette(
         "navy", "ネイビー",
         Color.parseColor("#14213D"), Color.parseColor("#1F2F52"), Color.parseColor("#2A3B63"),
@@ -58,7 +64,7 @@ object Themes {
         Color.parseColor("#F2F0EB"), Color.parseColor("#E2DFD8"), Color.WHITE,
         Color.parseColor("#F28C28"), Color.parseColor("#1E1E1E"), Color.parseColor("#6B6B6B"), Color.parseColor("#1E1E1E")
     )
-    val ALL = listOf(NAVY, BLACK, LIGHT)
+    val ALL = listOf(SUMI, NAVY, BLACK, LIGHT)
 
-    fun of(name: String?): Palette = ALL.firstOrNull { it.name == name } ?: NAVY
+    fun of(name: String?): Palette = ALL.firstOrNull { it.name == name } ?: SUMI
 }

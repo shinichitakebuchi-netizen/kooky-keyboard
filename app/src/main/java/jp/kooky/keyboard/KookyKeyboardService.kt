@@ -68,7 +68,7 @@ class KookyKeyboardService : InputMethodService() {
     private var oneHandPct = 78
 
     // 配色と背景の透過率（％）
-    private var pal: Palette = Themes.NAVY
+    private var pal: Palette = Themes.SUMI
     private var bgTrans = 0
 
     // 背景色に透過率をかけたもの（キー自体は透過しない）
@@ -83,7 +83,7 @@ class KookyKeyboardService : InputMethodService() {
         return listOf(
             pr.getInt("height_pct", 100).coerceIn(70, 150),
             pr.getInt("onehand_pct", 78).coerceIn(55, 95),
-            pr.getString("theme", "navy"),
+            pr.getString("theme", "sumi"),
             pr.getInt("bg_trans", 0).coerceIn(0, 90),
             pr.getInt("key_trans", 0).coerceIn(0, 90),
             pr.getLong("bg_image", 0L),
@@ -256,7 +256,7 @@ class KookyKeyboardService : InputMethodService() {
         floatArea = null
         heightPct = prefs().getInt("height_pct", 100).coerceIn(70, 150)
         oneHandPct = prefs().getInt("onehand_pct", 78).coerceIn(55, 95)
-        pal = Themes.of(prefs().getString("theme", "navy"))
+        pal = Themes.of(prefs().getString("theme", "sumi"))
         bgTrans = prefs().getInt("bg_trans", 0).coerceIn(0, 90)
         keyTrans = prefs().getInt("key_trans", 0).coerceIn(0, 90)
         builtLook = lookKey()

@@ -11,8 +11,8 @@ android {
         applicationId = "jp.kooky.keyboard"
         minSdk = 26
         targetSdk = 34
-        versionCode = 50
-        versionName = "0.50"
+        versionCode = 51
+        versionName = "0.51"
 
         // ベータ版（知人への配布用）は gradle assembleDebug -Pbeta でビルドする
         val beta = project.hasProperty("beta")
