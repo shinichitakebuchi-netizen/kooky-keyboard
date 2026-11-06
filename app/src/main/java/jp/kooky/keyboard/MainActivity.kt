@@ -1525,7 +1525,7 @@ class MainActivity : Activity() {
         return box
     }
 
-    // 配色の選択（藍 / 鳥の子 / ネイビー / ブラック / ライト）
+    // 配色の選択（墨 / 白練 / ネイビー / ブラック / ライト）
     // 丸い色見本の下に小さく名前。選択中は鳥の子色の細い輪で囲む
     private fun themePicker(): View {
         val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
@@ -1543,7 +1543,7 @@ class MainActivity : Activity() {
                 val dot = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
                     setColor(p.bg)
-                    setStroke(dp(1), if (p.bg == SUMI) LINE_C else p.accent)
+                    setStroke(dp(1), if (p.wa) LINE_C else p.accent)
                 }
                 val ld = LayerDrawable(arrayOf(ring, dot))
                 ld.setLayerInset(1, dp(5), dp(5), dp(5), dp(5))

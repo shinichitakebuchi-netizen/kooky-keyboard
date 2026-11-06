@@ -47,9 +47,9 @@ class Palette(
     // 明るい地の配色か（ナビゲーションバーのアイコンや波紋の色に使う）
     val light: Boolean get() = name == "light" || name == "kinari"
 
-    // 差し色だけ入れ替えたもの。差し色の上の文字は、藍色と鳥の子色のうち見やすいほう
+    // 差し色だけ入れ替えたもの。差し色の上の文字は、墨と白練のうち見やすいほう
     fun withAccent(c: Int): Palette {
-        val on = if (contrast(c, Iro.AI) >= contrast(c, Iro.TORINOKO)) Iro.AI else Iro.TORINOKO
+        val on = if (contrast(c, Iro.SUMI) >= contrast(c, Iro.SHIRONERI)) Iro.SUMI else Iro.SHIRONERI
         return Palette(name, label, bg, card, key, c or (0xFF shl 24), text, sub, on, wa, line)
     }
 }
@@ -65,19 +65,19 @@ fun contrast(a: Int, b: Int): Double {
 }
 
 object Themes {
-    // 藍（標準）：縁と同じ 日本の伝統色（藍色・鳥の子色・利休鼠・紅緋）
+    // 墨（標準・ダーク）：墨の地に白練の文字。罫線は利休鼠、差し色は紅緋
     // キーは塗らず、利休鼠の細い罫線だけで区切る
     val SUMI = Palette(
-        "sumi", "藍",
-        Iro.AI, Iro.AI, Iro.AI,
-        Iro.BENIHI, Iro.TORINOKO, Iro.KAMENOZOKI_70, Iro.AI,
+        "sumi", "墨",
+        Iro.SUMI, Iro.SUMI, Iro.SUMI,
+        Iro.BENIHI, Iro.SHIRONERI, Iro.KAMENOZOKI_70, Iro.SUMI,
         wa = true, line = Iro.RIKYUNEZUMI
     )
-    // 鳥の子：鳥の子色の地に藍色の文字と紅緋
+    // 白練（ライト）：白練の地に墨の文字と紅緋
     val KINARI = Palette(
-        "kinari", "鳥の子",
-        Iro.TORINOKO, Iro.TORINOKO, Iro.TORINOKO,
-        Iro.BENIHI, Iro.AI, Iro.RIKYUNEZUMI, Iro.TORINOKO,
+        "kinari", "白練",
+        Iro.SHIRONERI, Iro.SHIRONERI, Iro.SHIRONERI,
+        Iro.BENIHI, Iro.SUMI, Iro.RIKYUNEZUMI, Iro.SUMI,
         wa = true, line = Iro.RIKYUNEZUMI
     )
     val NAVY = Palette(
@@ -110,6 +110,9 @@ object Iro {
     val RIKYUNEZUMI = Color.parseColor("#656255")   // 利休鼠：罫線・枠線
     val BENIHI = Color.parseColor("#F35336")        // 紅緋：見出し・強調
     val WAKATAKE = Color.parseColor("#6B9362")      // 若竹色：稼働中などの状態
+    // キーボードのメイン色（値は colordic.org の「墨」#313131・「白練」#F3F3F2）
+    val SUMI = Color.parseColor("#313131")          // 墨：ダークの地・ライトの文字
+    val SHIRONERI = Color.parseColor("#F3F3F2")     // 白練：ライトの地・ダークの文字
 
     // 差し色として選べる色（縁と同じ18色。丁子色・葡萄色は数値未確認のため除外）
     val PRESETS: List<Pair<String, Int>> = listOf(
