@@ -402,6 +402,9 @@ class MainActivity : Activity() {
         c.addView(section("色"))
         c.addView(themePicker(), blockParams())
 
+        c.addView(section("差し色"))
+        c.addView(accentPicker(), blockParams())
+
         c.addView(section("文字"))
         c.addView(fontPicker(), blockParams())
         c.addView(text("Kaisei Tokumin・Yuji Syuku は SIL Open Font License 1.1 の無料フォントです。", 11f, USUZUMI)
@@ -1422,6 +1425,102 @@ class MainActivity : Activity() {
             rows.add(row)
             box.addView(row, LinearLayout.LayoutParams(match, wrap).apply { if (i > 0) topMargin = dp(8) })
         }
+        paint()
+        return box
+    }
+
+    // 差し色の選択（縁と同じ）：18色を6色ずつ3行。丸い色見本の下に小さく色名、選択中は鳥の子色の細い輪
+    // 下に「#」＋6桁の色コードを入れて「適用」もできる。「配色の標準」で選んだ配色のもとの色に戻す
+    private fun accentPicker(): View {
+        val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val cells = ArrayList<Triple<View, TextView, Int>>()
+        var std: TextView? = null
+        lateinit var hexEdit: EditText
+        fun cur() = prefs.getInt("accent", 0)
+        fun paint() {
+            val now = cur()
+            for ((sw, name, c) in cells) {
+                val on = now != 0 && (now and 0xFFFFFF) == (c and 0xFFFFFF)
+                val ring = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(Color.TRANSPARENT)
+                    if (on) setStroke(dp(1), KINARI)
+                }
+                val dot = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(c)
+                    setStroke(maxOf(1, (resources.displayMetrics.density * 0.5f).toInt()), LINE_C)
+                }
+                val ld = LayerDrawable(arrayOf(ring, dot))
+                ld.setLayerInset(1, dp(4), dp(4), dp(4), dp(4))
+                sw.background = ld
+                name.setTextColor(if (on) KINARI else USUZUMI)
+            }
+            std?.apply {
+                setTextColor(if (now == 0) SUMI else KINARI)
+                background = press(if (now == 0) SHU else KEYC, 0f)
+            }
+            if (now != 0 && !hexEdit.hasFocus()) hexEdit.setText(String.format("%06X", now and 0xFFFFFF))
+        }
+        fun pick(c: Int) {
+            prefs.edit().putInt("accent", if (c == 0) 0 else c or (0xFF shl 24)).apply()
+            paint()
+        }
+        Iro.PRESETS.chunked(6).forEachIndexed { r, row ->
+            val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            row.forEach { (name, c) ->
+                val cell = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER_HORIZONTAL
+                    setOnClickListener { pick(c) }
+                }
+                val sw = View(this)
+                cell.addView(sw, LinearLayout.LayoutParams(dp(28), dp(28)))
+                val tv = text(name, 9f, USUZUMI).apply {
+                    gravity = Gravity.CENTER
+                    maxLines = 1
+                    setPadding(0, dp(4), 0, 0)
+                }
+                cell.addView(tv)
+                cells.add(Triple(sw, tv, c))
+                line.addView(cell, LinearLayout.LayoutParams(0, wrap, 1f))
+            }
+            box.addView(line, LinearLayout.LayoutParams(match, wrap).apply { if (r > 0) topMargin = dp(10) })
+        }
+        // #色コード ＋ 適用
+        val hexRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        hexRow.addView(text("#", 14f, USUZUMI))
+        hexEdit = EditText(this).apply {
+            textSize = 14f
+            setTextColor(KINARI)
+            setHintTextColor(LINE_C)
+            hint = "F35336"
+            letterSpacing = 0.14f
+            isSingleLine = true
+            filters = arrayOf(android.text.InputFilter.AllCaps(), android.text.InputFilter.LengthFilter(6))
+            background = hairlineBottom(true)
+            setPadding(dp(6), dp(8), dp(6), dp(8))
+        }
+        hexRow.addView(hexEdit, LinearLayout.LayoutParams(0, wrap, 1f).apply { leftMargin = dp(6) })
+        hexRow.addView(button("適用", KEYC) {
+            val h = hexEdit.text.toString().trim()
+            if (Regex("[0-9A-Fa-f]{6}").matches(h)) pick(0xFF000000.toInt() or h.toInt(16))
+            else Toast.makeText(this, "6桁の色コード（例：F35336）を入れてね", Toast.LENGTH_SHORT).show()
+        }.apply { minWidth = dp(72) }, LinearLayout.LayoutParams(wrap, dp(40)).apply { leftMargin = dp(14) })
+        box.addView(hexRow, LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(14) })
+        // 配色の標準に戻す
+        val s = TextView(this).apply {
+            text = "配色の標準"
+            textSize = 14f
+            gravity = Gravity.CENTER
+            setOnClickListener { pick(0) }
+        }
+        std = s
+        box.addView(s, LinearLayout.LayoutParams(match, dp(42)).apply { topMargin = dp(12) })
         paint()
         return box
     }

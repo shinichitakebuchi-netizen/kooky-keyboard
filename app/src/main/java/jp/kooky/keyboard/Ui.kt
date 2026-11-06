@@ -43,7 +43,26 @@ class Palette(
     // 和の見た目（角をほぼ四角に・細い罫線・明朝の文字）
     val wa: Boolean = false,
     val line: Int = 0
-)
+) {
+    // 明るい地の配色か（ナビゲーションバーのアイコンや波紋の色に使う）
+    val light: Boolean get() = name == "light" || name == "kinari"
+
+    // 差し色だけ入れ替えたもの。差し色の上の文字は、藍色と鳥の子色のうち見やすいほう
+    fun withAccent(c: Int): Palette {
+        val on = if (contrast(c, Iro.AI) >= contrast(c, Iro.TORINOKO)) Iro.AI else Iro.TORINOKO
+        return Palette(name, label, bg, card, key, c or (0xFF shl 24), text, sub, on, wa, line)
+    }
+}
+
+// 2色の見やすさ（WCAGのコントラスト比）
+private fun lum(c: Int): Double {
+    fun ch(v: Int): Double { val x = v / 255.0; return if (x <= 0.03928) x / 12.92 else Math.pow((x + 0.055) / 1.055, 2.4) }
+    return 0.2126 * ch((c shr 16) and 0xFF) + 0.7152 * ch((c shr 8) and 0xFF) + 0.0722 * ch(c and 0xFF)
+}
+fun contrast(a: Int, b: Int): Double {
+    val la = lum(a); val lb = lum(b)
+    return (maxOf(la, lb) + 0.05) / (minOf(la, lb) + 0.05)
+}
 
 object Themes {
     // 藍（標準）：縁と同じ 日本の伝統色（藍色・鳥の子色・利休鼠・紅緋）
@@ -91,4 +110,14 @@ object Iro {
     val RIKYUNEZUMI = Color.parseColor("#656255")   // 利休鼠：罫線・枠線
     val BENIHI = Color.parseColor("#F35336")        // 紅緋：見出し・強調
     val WAKATAKE = Color.parseColor("#6B9362")      // 若竹色：稼働中などの状態
+
+    // 差し色として選べる色（縁と同じ18色。丁子色・葡萄色は数値未確認のため除外）
+    val PRESETS: List<Pair<String, Int>> = listOf(
+        "一斤染" to "#F08F90", "鴇色" to "#F3A696", "韓紅花" to "#C91F37",
+        "紅緋" to "#F35336", "柿渋色" to "#934337", "鬱金色" to "#E69B3A",
+        "玉子色" to "#FFA631", "鳥の子色" to "#E2BE9F", "鶸色" to "#BDA928",
+        "萌黄" to "#5B8930", "松葉色" to "#454D32", "若竹色" to "#6B9362",
+        "新橋色" to "#006C7F", "甕覗" to "#C6C2B6", "藍色" to "#264348",
+        "利休鼠" to "#656255", "紫苑" to "#976E9A", "桔梗色" to "#5D3F6A"
+    ).map { it.first to Color.parseColor(it.second) }
 }

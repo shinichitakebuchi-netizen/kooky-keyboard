@@ -88,6 +88,7 @@ class KookyKeyboardService : InputMethodService() {
             pr.getInt("height_pct", 100).coerceIn(70, 150),
             pr.getInt("onehand_pct", 78).coerceIn(55, 95),
             pr.getString("theme", "sumi"),
+            pr.getInt("accent", 0),
             pr.getInt("bg_trans", 0).coerceIn(0, 90),
             pr.getInt("key_trans", 0).coerceIn(0, 90),
             pr.getLong("bg_image", 0L),
@@ -136,7 +137,7 @@ class KookyKeyboardService : InputMethodService() {
 
     // 押したときの波紋（ライトは暗め、それ以外は明るめ）
     private fun press(color: Int, radius: Float): Drawable {
-        val light = pal === Themes.LIGHT || pal === Themes.KINARI
+        val light = pal.light
         val rip = if (light) 0x22000000 else 0x33FFFFFF
         if (!pal.wa) return Ui.pressable(keyColor(color), radius, rip)
         // 和の配色：角はほぼ四角、キーには細い罫線（朱・透明のものは線なし）
@@ -257,7 +258,7 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     // 見た目の設定（高さ・色・透過など）が変わったら、表示中のキーボードをすぐ作り直す
-    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans", "bg_image", "bg_crop", "float_pct", "nav_mode", "tilt_deg", "tilt_dir", "tilt_on", "flick_pct")
+    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans", "bg_image", "bg_crop", "float_pct", "nav_mode", "tilt_deg", "tilt_dir", "tilt_on", "flick_pct", "accent")
     private val rebuildLook = Runnable {
         if (isInputViewShown && lookKey() != builtLook) {
             stopRepeat()
@@ -282,7 +283,11 @@ class KookyKeyboardService : InputMethodService() {
         floatArea = null
         heightPct = prefs().getInt("height_pct", 100).coerceIn(70, 150)
         oneHandPct = prefs().getInt("onehand_pct", 78).coerceIn(55, 95)
-        pal = Themes.of(prefs().getString("theme", "sumi"))
+        pal = Themes.of(prefs().getString("theme", "sumi")).let {
+            // 差し色（設定の「差し色」。0＝配色の標準のまま）
+            val a = prefs().getInt("accent", 0)
+            if (a != 0) it.withAccent(a) else it
+        }
         bgTrans = prefs().getInt("bg_trans", 0).coerceIn(0, 90)
         keyTrans = prefs().getInt("key_trans", 0).coerceIn(0, 90)
         builtLook = lookKey()
@@ -637,7 +642,7 @@ class KookyKeyboardService : InputMethodService() {
             }
             w.navigationBarColor = if (floating || clear) Color.TRANSPARENT else (0xFF shl 24) or (pal.bg and 0x00FFFFFF)
             if (Build.VERSION.SDK_INT >= 29) w.isNavigationBarContrastEnforced = false
-            val light = !floating && (pal === Themes.LIGHT || pal === Themes.KINARI)
+            val light = !floating && pal.light
             if (Build.VERSION.SDK_INT >= 30) {
                 val flag = android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
                 w.insetsController?.setSystemBarsAppearance(if (light) flag else 0, flag)
