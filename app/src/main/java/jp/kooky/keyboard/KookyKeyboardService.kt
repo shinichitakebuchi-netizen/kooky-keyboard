@@ -53,6 +53,7 @@ class KookyKeyboardService : InputMethodService() {
         const val TAB_EN = 1
         const val TAB_NUM = 2
         const val TAB_PHRASE = 3 // ここから定型文カテゴリ
+        const val TAB_CLIP = 4   // コピーした文の履歴
     }
 
     private lateinit var store: PhraseStore
@@ -208,6 +209,13 @@ class KookyKeyboardService : InputMethodService() {
     private var numGrid: View? = null
     private var spaceKey: TextView? = null
     private var phraseBtn: TextView? = null
+    private var clipBtn: TextView? = null
+
+    // ---------- コピーした文の履歴 ----------
+    private lateinit var clips: ClipHistory
+    // 長押しで「固定・削除」を出している文
+    private var clipEdit: String? = null
+    private val clipListener = ClipboardManager.OnPrimaryClipChangedListener { recordClip() }
     private var keysRow: View? = null
     private val enterKeys = ArrayList<TextView>()
 
@@ -244,6 +252,8 @@ class KookyKeyboardService : InputMethodService() {
         dict = Dict(this)
         dict.prepare()
         prefs().registerOnSharedPreferenceChangeListener(lookListener)
+        clips = ClipHistory(this)
+        clipboard().addPrimaryClipChangedListener(clipListener)
     }
 
     // 見た目の設定（高さ・色・透過など）が変わったら、表示中のキーボードをすぐ作り直す
@@ -329,7 +339,7 @@ class KookyKeyboardService : InputMethodService() {
             imm().showInputMethodPicker()
             true
         }
-        top.addView(gear, LinearLayout.LayoutParams(dp(40), match).apply { rightMargin = dp(4) })
+        top.addView(gear, LinearLayout.LayoutParams(dp(36), match).apply { rightMargin = dp(3) })
         topIcons.add(gear)
 
         // 空き（変換中はここに変換候補が出る）
@@ -349,26 +359,32 @@ class KookyKeyboardService : InputMethodService() {
 
         // 定型文パネルの開閉
         val phr = toolKey(R.drawable.ic_kb_phrase) { togglePhrases() }
-        top.addView(phr, LinearLayout.LayoutParams(dp(40), match).apply { leftMargin = dp(4) })
+        top.addView(phr, LinearLayout.LayoutParams(dp(36), match).apply { leftMargin = dp(3) })
         topIcons.add(phr)
         phraseBtn = phr
+
+        // コピーした文の履歴（タップで貼り付け）
+        val clp = toolKey(R.drawable.ic_kb_clip) { toggleClips() }
+        top.addView(clp, LinearLayout.LayoutParams(dp(36), match).apply { leftMargin = dp(3) })
+        topIcons.add(clp)
+        clipBtn = clp
 
         // フローティングのオン・オフ
         val flt = toolKey(R.drawable.ic_kb_float) { setFloating(!floating) }
         if (floating) flt.background = iconBg(pal.accent, dp(8).toFloat(), R.drawable.ic_kb_float, pal.onAccent)
-        top.addView(flt, LinearLayout.LayoutParams(dp(40), match).apply { leftMargin = dp(4) })
+        top.addView(flt, LinearLayout.LayoutParams(dp(36), match).apply { leftMargin = dp(3) })
         topIcons.add(flt)
 
         // キーの角度（扇形）のオン・オフ。オンの間はオレンジ
         val tiltOn = prefs().getBoolean("tilt_on", true) && prefs().getInt("tilt_deg", 0) > 0
         val tlt = toolKey(R.drawable.ic_kb_tilt) { toggleTilt() }
         if (tiltOn) tlt.background = iconBg(pal.accent, dp(8).toFloat(), R.drawable.ic_kb_tilt, pal.onAccent)
-        top.addView(tlt, LinearLayout.LayoutParams(dp(40), match).apply { leftMargin = dp(4) })
+        top.addView(tlt, LinearLayout.LayoutParams(dp(36), match).apply { leftMargin = dp(3) })
         topIcons.add(tlt)
 
         // 片手モードの切り替え（通常 ⇔ 右寄せ）。フローティング中は使わない
         val hand = toolKey(R.drawable.ic_kb_hand) { setOneHand(if (oneHand == 0) 1 else 0) }
-        top.addView(hand, LinearLayout.LayoutParams(dp(40), match).apply { leftMargin = dp(4) })
+        top.addView(hand, LinearLayout.LayoutParams(dp(36), match).apply { leftMargin = dp(3) })
         if (!floating) topIcons.add(hand) else hand.visibility = View.GONE
 
         // 🎤 音声入力 → AIでビジネス敬語に添削 → 自動で入力
@@ -379,7 +395,7 @@ class KookyKeyboardService : InputMethodService() {
             startVoice(true)
             true
         }
-        top.addView(mic, LinearLayout.LayoutParams(dp(40), match).apply { leftMargin = dp(4) })
+        top.addView(mic, LinearLayout.LayoutParams(dp(36), match).apply { leftMargin = dp(3) })
         topIcons.add(mic)
 
         p.addView(top, LinearLayout.LayoutParams(match, sz(38)))
@@ -503,7 +519,7 @@ class KookyKeyboardService : InputMethodService() {
             val h = (b - t).toFloat()
             if (w <= 0 || h <= 0) return@addOnLayoutChangeListener
             // 定型文・記号パネルを開いている間は扇形をやめて、まっすぐの並びに戻す（パネルにキーが重ならないように）
-            if (tab == TAB_PHRASE || symOpen) {
+            if (tab >= TAB_PHRASE || symOpen) {
                 flickAngle.clear()
                 for (k in tiltKeys(body)) {
                     k.translationX = 0f
@@ -809,6 +825,7 @@ class KookyKeyboardService : InputMethodService() {
         stopBgAnim()
         bgAnim = null
         prefs().unregisterOnSharedPreferenceChangeListener(lookListener)
+        clipboard().removePrimaryClipChangedListener(clipListener)
         handler.removeCallbacks(rebuildLook)
         stopRepeat()
         cancelVoice()
@@ -1034,8 +1051,9 @@ class KookyKeyboardService : InputMethodService() {
         keysRow?.requestLayout()
 
         val phrasesOpen = tab == TAB_PHRASE
+        val clipsOpen = tab == TAB_CLIP
         keysRow?.visibility = View.VISIBLE
-        listScroll?.visibility = if (phrasesOpen) View.VISIBLE else View.GONE
+        listScroll?.visibility = if (phrasesOpen || clipsOpen) View.VISIBLE else View.GONE
         jaGrid?.visibility = if (tab == TAB_JA) View.VISIBLE else View.GONE
         enGrid?.visibility = if (tab == TAB_EN) View.VISIBLE else View.GONE
         numGrid?.visibility = if (tab == TAB_NUM) View.VISIBLE else View.GONE
@@ -1044,8 +1062,17 @@ class KookyKeyboardService : InputMethodService() {
         } else {
             iconBg(pal.card, dp(8).toFloat(), R.drawable.ic_kb_phrase, pal.sub)
         }
+        clipBtn?.background = if (clipsOpen) {
+            iconBg(pal.accent, dp(8).toFloat(), R.drawable.ic_kb_clip, pal.onAccent)
+        } else {
+            iconBg(pal.card, dp(8).toFloat(), R.drawable.ic_kb_clip, pal.sub)
+        }
 
         box.removeAllViews()
+        if (clipsOpen) {
+            renderClips(box)
+            return
+        }
         if (!phrasesOpen) return
 
         if (categories.all { it.phrases.isEmpty() }) {
@@ -1076,6 +1103,171 @@ class KookyKeyboardService : InputMethodService() {
                 box.addView(row, LinearLayout.LayoutParams(match, wrap).apply { bottomMargin = dp(4) })
             }
         }
+    }
+
+    // ---------- コピーした文の履歴（クリップボード） ----------
+    private fun clipboard() = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+
+    // 今クリップボードに入っている文を履歴に足す
+    // （キーボードが表示されていない間のコピーも、開いたときに拾えるように）
+    // パスワードなど「見せない」印の付いたコピーは残さない
+    private fun recordClip() {
+        try {
+            val clip = clipboard().primaryClip ?: return
+            if (clip.itemCount == 0) return
+            val ex = clip.description?.extras
+            if (ex != null && ex.getBoolean("android.content.extra.IS_SENSITIVE", false)) return
+            val text = clip.getItemAt(0).coerceToText(this)?.toString() ?: return
+            if (text.isBlank()) return
+            clips.add(text)
+            if (tab == TAB_CLIP) render()
+        } catch (e: Exception) {
+            // 読めないときは何もしない
+        }
+    }
+
+    private fun toggleClips() {
+        closeBrackets()
+        closeSymbols()
+        if (tab == TAB_CLIP) {
+            backToKeyboard()
+            return
+        }
+        commitAll()
+        resetToggle()
+        cancelVoice()
+        recordClip()
+        clipEdit = null
+        tab = TAB_CLIP
+        render()
+        listScroll?.scrollTo(0, 0)
+    }
+
+    private fun renderClips(box: LinearLayout) {
+        val list = clips.load()
+        // 見出し：クリップボード ……… すべて消す
+        val head = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(4), dp(8), dp(4), dp(4))
+        }
+        head.addView(TextView(this).apply {
+            text = "クリップボード"
+            setTextColor(pal.accent)
+            textSize = 12f
+            typeface = tf(true)
+        }, LinearLayout.LayoutParams(0, wrap, 1f))
+        if (list.any { !it.pinned }) {
+            head.addView(TextView(this).apply {
+                text = "すべて消す"
+                setTextColor(pal.sub)
+                textSize = 11f
+                setPadding(dp(8), dp(2), dp(4), dp(2))
+                setOnClickListener {
+                    it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    clips.clearUnpinned()
+                    clipEdit = null
+                    render()
+                }
+            })
+        }
+        box.addView(head)
+
+        if (list.isEmpty()) {
+            box.addView(TextView(this).apply {
+                text = "コピーした文がここにたまるよ。\nタップで貼り付け、長押しで固定・削除"
+                setTextColor(pal.sub)
+                textSize = 12f
+                gravity = Gravity.CENTER
+                setPadding(0, dp(28), 0, 0)
+            })
+            return
+        }
+        list.chunked(2).forEach { pair ->
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            pair.forEach { c -> row.addView(clipCell(c), LinearLayout.LayoutParams(0, wrap, 1f).apply {
+                leftMargin = dp(2)
+                rightMargin = dp(2)
+            }) }
+            if (pair.size == 1) row.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
+            box.addView(row, LinearLayout.LayoutParams(match, wrap).apply { bottomMargin = dp(4) })
+        }
+    }
+
+    private fun clipCell(c: ClipHistory.Item): View {
+        // 長押し中：固定 ／ 削除 のボタン
+        if (clipEdit == c.text) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                minimumHeight = dp(52)
+            }
+            val pin = key(if (c.pinned) "固定をはずす" else "固定する", pal.key).apply {
+                textSize = 12f
+                setOnClickListener {
+                    it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    clips.togglePin(c.text)
+                    clipEdit = null
+                    render()
+                }
+            }
+            val del = key("削除", pal.accent).apply {
+                textSize = 12f
+                setOnClickListener {
+                    it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    clips.remove(c.text)
+                    clipEdit = null
+                    render()
+                }
+            }
+            row.addView(pin, LinearLayout.LayoutParams(0, dp(52), 1.4f).apply { rightMargin = dp(2) })
+            row.addView(del, LinearLayout.LayoutParams(0, dp(52), 1f).apply { leftMargin = dp(2) })
+            return row
+        }
+        val cell = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
+            minimumHeight = dp(52)
+            setPadding(dp(8), dp(5), dp(8), dp(5))
+            background = press(pal.key, dp(8).toFloat())
+        }
+        if (c.pinned) {
+            cell.addView(TextView(this).apply {
+                text = "固定"
+                setTextColor(pal.accent)
+                textSize = 9f
+                typeface = tf(true)
+            })
+        }
+        cell.addView(TextView(this).apply {
+            text = c.text.replace("\n", " ")
+            setTextColor(pal.text)
+            textSize = 12f
+            maxLines = 2
+            ellipsize = TextUtils.TruncateAt.END
+            typeface = tf(false)
+        })
+        // タップ：貼り付け
+        cell.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            if (clipEdit != null) {
+                clipEdit = null
+                render()
+                return@setOnClickListener
+            }
+            commitAll()
+            resetToggle()
+            currentInputConnection?.commitText(c.text, 1)
+            lastCommit = c.text
+            lastReading = null
+        }
+        // 長押し：固定・削除
+        cell.setOnLongClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            clipEdit = c.text
+            render()
+            true
+        }
+        return cell
     }
 
     // 定型文パネルの開閉（開くときは入力中の文字を確定してから）
@@ -1679,7 +1871,7 @@ class KookyKeyboardService : InputMethodService() {
         resetToggle()
         closeBrackets()
         cancelVoice()
-        if (tab == TAB_PHRASE) backToKeyboard()
+        if (tab >= TAB_PHRASE) backToKeyboard()
         symOpen = true
         if (symCat == 0 && recentSyms().isEmpty()) symCat = 1
         // 後ろの文字キーは隠す（扇形のときに記号の間から透けて二重に見えないように）
@@ -2216,8 +2408,7 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     private fun copy(text: String) {
-        val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        cm.setPrimaryClip(ClipData.newPlainText("定型文", text))
+        clipboard().setPrimaryClip(ClipData.newPlainText("定型文", text))
         // Android 13以降はOS側でコピー通知が出るので重ねない
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             Toast.makeText(this, "コピーしたよ", Toast.LENGTH_SHORT).show()
