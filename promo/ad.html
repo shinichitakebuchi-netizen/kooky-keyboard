@@ -52,7 +52,7 @@ body { display: flex; align-items: center; justify-content: center; overflow: hi
   background: var(--kbg); font-family: var(--gothic); }
 #tool { position: absolute; left: 9px; right: 9px; top: 9px; height: 114px; display: flex; }
 #tool .sp { flex: 1; }
-.tb { width: 120px; height: 114px; flex: none; box-sizing: border-box; border: 1.5px solid var(--kline); border-radius: 9px; display: flex; align-items: center; justify-content: center; margin-left: 12px; }
+.tb { width: 108px; height: 114px; flex: none; box-sizing: border-box; border: 1.5px solid var(--kline); border-radius: 9px; display: flex; align-items: center; justify-content: center; margin-left: 9px; }
 .tb:first-child { margin-left: 0; }
 .tb svg { width: 66px; height: 66px; fill: none; stroke: var(--ksub); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .tb.on { background: var(--kacc); border-color: var(--kacc); }
@@ -90,6 +90,20 @@ body { display: flex; align-items: center; justify-content: center; overflow: hi
 #vSub { flex: 1; border: 1.5px solid var(--kline); color: var(--ktext); }
 #vMain { flex: 1.6; background: var(--kacc); color: var(--kon); }
 #vBtns .hl { position: absolute; inset: 0; background: #E2BE9F; opacity: 0; border-radius: 7px; }
+
+/* ---- クリップボード（コピーした文の履歴） ---- */
+#clp { position: absolute; left: 227px; top: 135px; width: 626px; height: 612px; box-sizing: border-box; background: var(--kbg); z-index: 2; opacity: 0; overflow: hidden; padding: 0 6px; }
+#clp .hd { display: flex; align-items: center; justify-content: space-between; padding: 24px 12px 12px; }
+#clp .hd b { color: var(--kacc); font-size: 36px; font-weight: 700; }
+#clp .hd i { color: var(--ksub); font-size: 33px; font-style: normal; }
+#clp .pr { display: flex; gap: 12px; margin-bottom: 12px; }
+#clp .cc2 { flex: 1; min-width: 0; min-height: 156px; box-sizing: border-box; border: 1.5px solid var(--kline); border-radius: 9px; padding: 15px 24px; display: flex; flex-direction: column; justify-content: center; position: relative; }
+#clp .cc2 em { font-style: normal; color: var(--kacc); font-size: 27px; font-weight: 700; }
+#clp .cc2 span.t { font-size: 36px; color: var(--ktext); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+#clp .cc2 .hl { position: absolute; inset: 0; background: var(--ktext); opacity: 0; border-radius: 7px; }
+/* ---- 差し色の名前（入力欄の下に小さく） ---- */
+#accName { left: 90px; top: 960px; font-family: var(--mincho); font-size: 34px; letter-spacing: .3em; color: rgba(198,194,182,.7); opacity: 0; }
+#accName i { display: inline-block; width: 30px; height: 30px; border-radius: 50%; vertical-align: -4px; margin-right: 18px; font-style: normal; }
 
 /* ---- タップの輪 ---- */
 .tap { position: absolute; width: 120px; height: 120px; margin: -60px 0 0 -60px; border: 2px solid var(--benihi); border-radius: 50%; opacity: 0; pointer-events: none; z-index: 5; }
@@ -141,6 +155,7 @@ body { display: flex; align-items: center; justify-content: center; overflow: hi
         <div class="tb" id="tGear"><svg viewBox="0 0 24 24"><path d="M5.8,12a6.2,6.2 0 1,0 12.4,0a6.2,6.2 0 1,0 -12.4,0"/><path d="M9.6,12a2.4,2.4 0 1,0 4.8,0a2.4,2.4 0 1,0 -4.8,0"/><path d="M12,2.5v3M12,18.5v3M2.5,12h3M18.5,12h3M5.3,5.3l2.1,2.1M16.6,16.6l2.1,2.1M5.3,18.7l2.1,-2.1M16.6,7.4l2.1,-2.1"/></svg></div>
         <div class="sp"></div>
         <div class="tb" id="tPhrase"><svg viewBox="0 0 24 24"><path d="M7,3h10a2,2 0 0 1 2,2v14a2,2 0 0 1 -2,2h-10a2,2 0 0 1 -2,-2v-14a2,2 0 0 1 2,-2z"/><path d="M9,8h6M9,12h6M9,16h4"/></svg></div>
+        <div class="tb" id="tClip"><svg viewBox="0 0 24 24"><path d="M8.5,4.5h-1.5a2,2 0 0 0 -2,2v12.5a2,2 0 0 0 2,2h10a2,2 0 0 0 2,-2v-12.5a2,2 0 0 0 -2,-2h-1.5"/><path d="M10,3h4a1,1 0 0 1 1,1v1a1,1 0 0 1 -1,1h-4a1,1 0 0 1 -1,-1v-1a1,1 0 0 1 1,-1z"/><path d="M9,11h6M9,15h4"/></svg></div>
         <div class="tb" id="tFloat"><svg viewBox="0 0 24 24"><path d="M4,6h12a1.5,1.5 0 0 1 1.5,1.5v8a1.5,1.5 0 0 1 -1.5,1.5h-12a1.5,1.5 0 0 1 -1.5,-1.5v-8a1.5,1.5 0 0 1 1.5,-1.5z"/><path d="M7.5,9.5h5M20.5,10v9a1.5,1.5 0 0 1 -1.5,1.5h-12"/></svg></div>
         <div class="tb" id="tTilt"><svg viewBox="0 0 24 24"><path d="M3.8,11.8h2.6a1,1 0 0 1 1,1v2.6a1,1 0 0 1 -1,1h-2.6a1,1 0 0 1 -1,-1v-2.6a1,1 0 0 1 1,-1z"/><path d="M10.7,7.8h2.6a1,1 0 0 1 1,1v2.6a1,1 0 0 1 -1,1h-2.6a1,1 0 0 1 -1,-1v-2.6a1,1 0 0 1 1,-1z"/><path d="M17.6,11.8h2.6a1,1 0 0 1 1,1v2.6a1,1 0 0 1 -1,1h-2.6a1,1 0 0 1 -1,-1v-2.6a1,1 0 0 1 1,-1z"/><path d="M9,19.5A3.5,3.5 0 0 1 15,19.5"/></svg></div>
         <div class="tb" id="tHand"><svg viewBox="0 0 24 24"><path d="M13.2,3h4.6a2.2,2.2 0 0 1 2.2,2.2v13.6a2.2,2.2 0 0 1 -2.2,2.2h-4.6a2.2,2.2 0 0 1 -2.2,-2.2v-13.6a2.2,2.2 0 0 1 2.2,-2.2z"/><path d="M14.5,17.5h2M3,12h5M6,9l-3,3 3,3"/></svg></div>
@@ -155,12 +170,19 @@ body { display: flex; align-items: center; justify-content: center; overflow: hi
           <div class="cat">社内連絡</div>
           <div class="pr"><div class="pc"><b>お疲れさまです</b><i>お疲れさまです。</i><span class="hl"></span></div><div class="pc"><b>承知しました</b><i>承知しました。対応いたします。</i><span class="hl"></span></div></div>
         </div>
+        <div id="clp">
+          <div class="hd"><b>クリップボード</b><i>すべて消す</i></div>
+          <div class="pr"><div class="cc2"><em>固定</em><span class="t">〒000-0000 ○○市○○町1-2-3</span><span class="hl"></span></div><div class="cc2" id="cl1"><span class="t">来週の打ち合わせ資料、共有フォルダに入れました</span><span class="hl"></span></div></div>
+          <div class="pr"><div class="cc2"><span class="t">https://example.com/reserve</span><span class="hl"></span></div><div class="cc2"><span class="t">10月分のシフト表</span><span class="hl"></span></div></div>
+          <div class="pr"><div class="cc2"><span class="t">090-0000-0000</span><span class="hl"></span></div><div class="cc2"><span class="t">よろしくお願いいたします。</span><span class="hl"></span></div></div>
+        </div>
         <div id="voice">
           <div id="vState"></div>
           <div id="vBody"></div>
           <div id="vBtns"><div id="vSub"><span id="vSubT"></span><span class="hl"></span></div><div id="vMain"><span id="vMainT"></span><span class="hl" id="vMainHl"></span></div></div>
         </div>
     </div>
+    <div id="accName" class="abs"><i></i><span></span></div>
     <div id="tap" class="tap"></div>
   </div>
 
@@ -176,7 +198,7 @@ body { display: flex; align-items: center; justify-content: center; overflow: hi
     <div id="eTitle" class="abs title" style="left:0; width:1080px; top:770px; text-align:center; font-size:220px">綴</div>
     <div id="eYomi" class="abs yomi" style="left:0; width:1080px; top:1030px; text-align:center; font-size:40px; padding-left:.5em">つづり</div>
     <div id="eRule" class="abs" style="left:490px; top:1170px; width:100px; height:2px; background:#F35336"></div>
-    <div id="eTag" class="abs" style="left:0; width:1080px; top:1220px; text-align:center; font-size:32px; color:rgba(198,194,182,.7); letter-spacing:.35em; padding-left:.35em; font-family:var(--mincho)">定型文　変換　扇形　声</div>
+    <div id="eTag" class="abs" style="left:0; width:1080px; top:1220px; text-align:center; font-size:32px; color:rgba(198,194,182,.7); letter-spacing:.35em; padding-left:.35em; font-family:var(--mincho)">定型文　変換　扇形　声　履歴</div>
     <div id="eSub" class="abs" style="left:0; width:1080px; top:1300px; text-align:center; font-size:30px; color:rgba(198,194,182,.7); letter-spacing:.3em; padding-left:.3em; font-family:var(--mincho)">言葉を綴る、日本語のキーボード</div>
   </div>
 
@@ -186,7 +208,7 @@ body { display: flex; align-items: center; justify-content: center; overflow: hi
 
 <script>
 (() => {
-  const D = 30;                       // 全体の長さ（秒）
+  const D = 36;                       // 全体の長さ（秒）
   const $ = (id) => document.getElementById(id);
   const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
   const prog = (t, a, b) => clamp((t - a) / (b - a));
@@ -243,7 +265,9 @@ body { display: flex; align-items: center; justify-content: center; overflow: hi
     { s: 11.0, e: 14.5, no: "二", tx: "打ちながら、<br>漢字に。" },
     { s: 14.5, e: 17.5, no: "三", tx: "親指に、<br>沿う。" },
     { s: 17.5, e: 20.5, no: "四", tx: "声を、<br>敬語に。" },
-    { s: 20.5, e: 23.5, no: "五", tx: "藍と、<br>鳥の子。" }
+    { s: 20.5, e: 23.5, no: "五", tx: "写した文を、<br>いつでも。" },
+    { s: 23.5, e: 26.5, no: "六", tx: "藍と、<br>鳥の子。" },
+    { s: 26.5, e: 29.5, no: "七", tx: "差し色は、<br>伝統色から。" }
   ];
 
   // おせわになっております（フリック入力 → ライブ変換）
@@ -256,6 +280,11 @@ body { display: flex; align-items: center; justify-content: center; overflow: hi
     return [(r.left + r.width / 2 - sr.left) / z, (r.top + r.height / 2 - sr.top) / z];
   }
   const mixc = (a, b, p) => { const A = a.match(/\w\w/g).map((h) => parseInt(h, 16)), B = b.match(/\w\w/g).map((h) => parseInt(h, 16)); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * p)).join(",")})`; };
+
+  // WCAGのコントラスト比で、差し色の上の文字を藍色か鳥の子色か決める（アプリの withAccent と同じ）
+  const lumi = (h) => h.match(/\w\w/g).map((x) => parseInt(x, 16) / 255).map((x) => x <= .03928 ? x / 12.92 : Math.pow((x + .055) / 1.055, 2.4)).reduce((a, v, i) => a + v * [.2126, .7152, .0722][i], 0);
+  const cr = (a, b) => { const x = lumi(a), y = lumi(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+  const onAccent = (h) => cr(h, "264348") >= cr(h, "E2BE9F") ? "#264348" : "#E2BE9F";
 
   function render(t) {
     // ---- 一枚目 ----
@@ -274,7 +303,7 @@ body { display: flex; align-items: center; justify-content: center; overflow: hi
     c2.forEach((e, i) => { e.style.opacity = String(out(prog(t, 5.7 + i * .04, 6.1 + i * .04))); });
 
     // ---- 使っているところ ----
-    set($("demo"), "opacity", String(fade(t, 7.6, 8.1, 23.5, 24.0)));
+    set($("demo"), "opacity", String(fade(t, 7.6, 8.1, 29.5, 30.0)));
     let sc = SC.findIndex((s) => t >= s.s && t < s.e);
     if (sc < 0) sc = t < SC[0].s ? 0 : SC.length - 1;
     const S = SC[sc], lt = t - S.s;
@@ -283,7 +312,7 @@ body { display: flex; align-items: center; justify-content: center; overflow: hi
     set($("cap"), "opacity", String(fade(t, S.s + .05, S.s + .55, S.e - .45, S.e - .05)));
     set($("cap"), "transform", `translateY(${(1 - out(prog(t, S.s + .05, S.s + .55))) * 18}px)`);
 
-    const st = { field: "", comp: "", cands: [], phr: 0, voice: 0, fan: 0, pal: 0, flk: {}, on: new Set(), prs: new Set() };
+    const st = { field: "", comp: "", cands: [], clp: 0, acc: "F35336", accName: 0, accLabel: "", phr: 0, voice: 0, fan: 0, pal: 0, flk: {}, on: new Set(), prs: new Set() };
     let tapEl = null, tapP = 0;
     const tap = (when, el, hold = 0) => {
       const d = lt - when;
@@ -344,10 +373,24 @@ body { display: flex; align-items: center; justify-content: center; overflow: hi
       html($("vState"), state); html($("vBody"), body); html($("vSubT"), sub); html($("vMainT"), main);
       tap(tMain, $("vMain"));
       $("vMainHl").style.opacity = lt >= tMain && lt < tMain + .2 ? ".25" : "0";
-    } else {
-      // 五 色：藍 → 鳥の子 → 藍
+    } else if (sc === 4) {
+      // 五 クリップボード：ボタン → コピーした文が並ぶ → タップで貼り付け
+      tap(.2, $("tClip"));
+      if (lt >= .2 && lt < 2.6) st.on.add($("tClip"));
+      st.clp = Math.min(out(prog(lt, .22, .45)), 1 - ease(prog(lt, 2.6, 2.85)));
+      tap(1.3, $("cl1"));
+      if (lt >= 1.3) st.field = "来週の打ち合わせ資料、共有フォルダに入れました";
+    } else if (sc === 5) {
+      // 六 配色：藍 → 鳥の子 → 藍
       st.pal = Math.min(ease(prog(lt, .35, 1.1)), 1 - ease(prog(lt, 2.15, 2.85)));
       st.field = "藍と、鳥の子。";
+    } else {
+      // 七 差し色：紅緋 → 新橋色 → 鬱金色 → 桔梗色 → 紅緋（確定キー・モード・候補の色が変わる）
+      const seq = [["紅緋", "F35336"], ["新橋色", "006C7F"], ["鬱金色", "E69B3A"], ["桔梗色", "5D3F6A"], ["紅緋", "F35336"]];
+      const n = Math.min(seq.length - 1, Math.max(0, Math.floor((lt - .2) / .6)));
+      st.acc = seq[n][1]; st.accLabel = seq[n][0];
+      st.accName = fade(lt, .15, .4, 2.55, 2.85);
+      st.field = "差し色は、伝統色から。";
     }
 
     // 入力欄（入力中の文字は下線つき）
@@ -360,6 +403,12 @@ body { display: flex; align-items: center; justify-content: center; overflow: hi
     document.querySelectorAll(".tb").forEach((b) => { b.classList.toggle("on", st.on.has(b)); b.classList.toggle("prs", st.prs.has(b) && !st.on.has(b)); });
     // パネル
     set($("phr"), "opacity", String(st.phr));
+    set($("clp"), "opacity", String(st.clp));
+    document.querySelectorAll("#clp .hl").forEach((e) => e.style.opacity = "0");
+    if (st.prs.has($("cl1"))) $("cl1").querySelector(".hl").style.opacity = ".2";
+    set($("accName"), "opacity", String(st.accName));
+    html($("accName").querySelector("span"), st.accLabel);
+    $("accName").querySelector("i").style.background = "#" + st.acc;
     set($("voice"), "opacity", String(st.voice));
     document.querySelectorAll("#phr .hl").forEach((e) => e.style.opacity = "0");
     if (st.prs.has($("pc1"))) $("pc1").querySelector(".hl").style.opacity = ".2";
@@ -393,6 +442,9 @@ body { display: flex; align-items: center; justify-content: center; overflow: hi
     kb.setProperty("--ktext", mixc("E2BE9F", "264348", st.pal));
     kb.setProperty("--ksub", st.pal > .5 ? "#656255" : "rgba(198,194,182,.7)");
     kb.setProperty("--kon", mixc("264348", "E2BE9F", st.pal));
+    // 差し色と、その上の文字（藍色と鳥の子色のうち見やすいほう：アプリと同じ決め方）
+    kb.setProperty("--kacc", "#" + st.acc);
+    if (st.pal === 0) kb.setProperty("--kon", onAccent(st.acc));
     // タップの輪
     const tp = $("tap");
     if (tapEl) {
@@ -403,15 +455,15 @@ body { display: flex; align-items: center; justify-content: center; overflow: hi
     } else tp.style.opacity = "0";
 
     // ---- 終わり ----
-    set($("end"), "opacity", String(out(prog(t, 24.1, 24.6))));
+    set($("end"), "opacity", String(out(prog(t, 30.10, 30.60))));
     const el = $("eLine");
-    el.setAttribute("stroke-dasharray", L); el.setAttribute("stroke-dashoffset", String(L * (1 - ease(prog(t, 24.3, 25.1)))));
-    document.querySelectorAll("#end .est").forEach((e, i) => e.style.opacity = String(out(prog(t, 25.1 + i * .15, 25.35 + i * .15))));
-    set($("eTitle"), "opacity", String(out(prog(t, 25.6, 26.4))));
-    set($("eYomi"), "opacity", String(out(prog(t, 26.1, 26.7))));
-    set($("eRule"), "transform", `scaleX(${out(prog(t, 26.6, 27.2))})`);
-    set($("eTag"), "opacity", String(out(prog(t, 26.9, 27.5))));
-    set($("eSub"), "opacity", String(out(prog(t, 27.3, 27.9))));
+    el.setAttribute("stroke-dasharray", L); el.setAttribute("stroke-dashoffset", String(L * (1 - ease(prog(t, 30.30, 31.10)))));
+    document.querySelectorAll("#end .est").forEach((e, i) => e.style.opacity = String(out(prog(t, 31.10 + i * .15, 31.35 + i * .15))));
+    set($("eTitle"), "opacity", String(out(prog(t, 31.60, 32.40))));
+    set($("eYomi"), "opacity", String(out(prog(t, 32.10, 32.70))));
+    set($("eRule"), "transform", `scaleX(${out(prog(t, 32.60, 33.20))})`);
+    set($("eTag"), "opacity", String(out(prog(t, 32.90, 33.50))));
+    set($("eSub"), "opacity", String(out(prog(t, 33.30, 33.90))));
 
     $("barIn").style.width = (t / D * 100) + "%";
   }
