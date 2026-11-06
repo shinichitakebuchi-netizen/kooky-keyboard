@@ -87,7 +87,6 @@ class KookyKeyboardService : InputMethodService() {
             pr.getInt("height_pct", 100).coerceIn(70, 150),
             pr.getInt("onehand_pct", 78).coerceIn(55, 95),
             pr.getString("theme", "sumi"),
-            pr.getInt(AppFonts.PREF_KEY, 0),
             pr.getInt("bg_trans", 0).coerceIn(0, 90),
             pr.getInt("key_trans", 0).coerceIn(0, 90),
             pr.getLong("bg_image", 0L),
@@ -148,10 +147,8 @@ class KookyKeyboardService : InputMethodService() {
         return RippleDrawable(ColorStateList.valueOf(rip), d, null)
     }
 
-    // 文字のフォント：設定の「文字」で選んだもの（キーボードを作り直すときに1回だけ読む）
-    private var fontIdx = 0
-    private fun tf(bold: Boolean): Typeface =
-        if (bold) AppFonts.bold(this, fontIdx) else AppFonts.typeface(this, fontIdx)
+    // キーボードの文字は端末の標準（ゴシック）。設定の「文字」は設定画面だけに効く
+    private fun tf(bold: Boolean): Typeface = if (bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
 
     // 手作りアイコンを背景の真ん中に重ねる（押したときの波紋もそのまま）
     private fun iconBg(color: Int, radius: Float, icon: Int, tint: Int, sizeDp: Int = 22): Drawable {
@@ -250,7 +247,7 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     // 見た目の設定（高さ・色・透過など）が変わったら、表示中のキーボードをすぐ作り直す
-    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans", "bg_image", "bg_crop", "float_pct", "nav_mode", "tilt_deg", "tilt_dir", "tilt_on", "flick_pct", AppFonts.PREF_KEY)
+    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans", "bg_image", "bg_crop", "float_pct", "nav_mode", "tilt_deg", "tilt_dir", "tilt_on", "flick_pct")
     private val rebuildLook = Runnable {
         if (isInputViewShown && lookKey() != builtLook) {
             stopRepeat()
@@ -276,7 +273,6 @@ class KookyKeyboardService : InputMethodService() {
         heightPct = prefs().getInt("height_pct", 100).coerceIn(70, 150)
         oneHandPct = prefs().getInt("onehand_pct", 78).coerceIn(55, 95)
         pal = Themes.of(prefs().getString("theme", "sumi"))
-        fontIdx = AppFonts.current(this)
         bgTrans = prefs().getInt("bg_trans", 0).coerceIn(0, 90)
         keyTrans = prefs().getInt("key_trans", 0).coerceIn(0, 90)
         builtLook = lookKey()
@@ -441,8 +437,6 @@ class KookyKeyboardService : InputMethodService() {
         render()
         refreshCandBar()
         updateCaseLabels()
-        // キー以外の文字（ツールバー・パネルなど）にもフォントを当てる
-        AppFonts.apply(root, this, fontIdx)
         if (floating) return buildFloating(root)
         // ナビゲーションバーを透明にするときは、キーボードの背景をバーの裏まで伸ばす
         // （キーはバーの上に収まるように、バーの高さぶん下に余白を足す）
