@@ -1,804 +1,416 @@
-<title>Kooky Keyboard 広告ムービー</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>綴 コンセプト動画</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto:wght@500;700&family=Noto+Color+Emoji&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500&family=Noto+Serif+JP:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-/* 縦長9:16のステージ（360×640の設計サイズ）を中央に置き、下に操作ボタンと進み具合のバー */
+/* 綴（つづり）コンセプト動画：日本 × ミニマリスト
+   色は日本の伝統色だけ（藍色・鳥の子色・甕覗・利休鼠・紅緋）。1080×1920 の縦長で設計 */
 :root {
-  --page: #0B1428;      /* ページの地 */
-  --navy: #14213D;      /* アプリの背景色 */
-  --card: #1F2F52;      /* アプリのカード色 */
-  --key: #2A3B63;       /* アプリのキー色 */
-  --orange: #F28C28;    /* アプリのアクセント */
-  --sub: #9AA7C2;       /* アプリの補助文字 */
-  --white: #FFFFFF;
-  --ja: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", "Noto Color Emoji", sans-serif;
-  --en: "Roboto", "Noto Sans JP", "Helvetica Neue", Arial, sans-serif;
+  --ai: #264348;          /* 藍色：背景 */
+  --tori: #E2BE9F;        /* 鳥の子色：文字（主） */
+  --kame: rgba(198,194,182,.7); /* 甕覗 70%：文字（補足） */
+  --rikyu: #656255;       /* 利休鼠：罫線 */
+  --benihi: #F35336;      /* 紅緋：見出し・強調 */
+  --mincho: "Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --gothic: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
   color-scheme: dark;
 }
-html, body { height: 100%; }
-body {
-  background: var(--page);
-  color: var(--white);
-  font-family: var(--ja);
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 16px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  overflow-x: hidden;
-}
-#wrap { position: relative; max-width: 100%; }
-#stage {
-  position: absolute; left: 0; top: 0;
-  width: 360px; height: 640px;
-  transform-origin: 0 0;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 12% 8%, rgba(242,140,40,.18), transparent 38%),
-    radial-gradient(circle at 92% 96%, rgba(47,111,214,.16), transparent 42%),
-    radial-gradient(rgba(154,167,194,.10) 1px, transparent 1.2px) 0 0 / 14px 14px,
-    var(--navy);
-  border-radius: 18px;
-  font-family: var(--ja);
-  color: var(--white);
-  -webkit-font-smoothing: antialiased;
-}
-.ctrl { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-.ctrl button {
-  font: 500 14px var(--ja); color: var(--white);
-  background: var(--card); border: 1px solid #33456F; border-radius: 10px;
-  padding: 10px 16px; cursor: pointer; min-width: 120px;
-}
-.ctrl button.main { background: var(--orange); color: var(--navy); border-color: var(--orange); }
-.ctrl button:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
-#bar { width: 100%; height: 6px; background: var(--card); border-radius: 3px; overflow: hidden; }
-#barIn { height: 100%; width: 0; background: var(--orange); }
-#time { font: 500 12px var(--en); color: var(--sub); font-variant-numeric: tabular-nums; }
-#under { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+html, body { margin: 0; height: 100%; background: var(--ai); }
+body { display: flex; align-items: center; justify-content: center; overflow: hidden; }
+#wrap { width: 1080px; height: 1920px; transform-origin: center center; flex: none; }
+#stage { position: relative; width: 1080px; height: 1920px; background: var(--ai); overflow: hidden; color: var(--tori); font-family: var(--gothic); }
+.abs { position: absolute; }
+.o0 { opacity: 0; }
 
-/* ---------- キャプション（上：英語ラベル／下：日本語） ---------- */
-#cap { position: absolute; left: 0; right: 0; top: 46px; text-align: center; }
-#capL { font: 700 11px var(--en); letter-spacing: .28em; color: var(--orange); }
-#capJ { font: 700 21px var(--ja); margin-top: 8px; letter-spacing: .02em; text-wrap: balance; }
+/* ---- 綴じ糸のしるし（アイコンと同じ形） ---- */
+.mark line { stroke-linecap: round; }
 
-/* ---------- スマホ ---------- */
-#phone {
-  position: absolute; left: 55px; top: 140px; width: 250px; height: 476px;
-  border-radius: 32px; background: #070C18; padding: 7px; box-sizing: border-box;
-  box-shadow: 0 18px 40px rgba(0,0,0,.45), inset 0 0 0 1.5px #2A3550;
-}
-#screen { position: relative; width: 100%; height: 100%; border-radius: 26px; overflow: hidden; background: #EEF1F6; }
-.sbar { height: 20px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font: 500 9px var(--en); color: #1E2433; }
-.sbar i { width: 34px; height: 9px; border-radius: 5px; background: #1E2433; opacity: .85; }
-.apphead { height: 28px; display: flex; align-items: center; gap: 8px; padding: 0 12px; font: 700 11px var(--ja); color: #1E2433; border-bottom: 1px solid #DCE1EA; background: #F7F8FB; }
-.apphead b { width: 18px; height: 18px; border-radius: 50%; background: #C9D3E6; }
-.chat { padding: 10px 10px; display: flex; flex-direction: column; gap: 7px; }
-.bub { max-width: 74%; font-size: 9.5px; line-height: 1.45; padding: 6px 9px; border-radius: 12px; color: #1E2433; background: #FFFFFF; }
-.bub.me { align-self: flex-end; background: #D9E6FF; }
-.inbar { position: absolute; left: 0; right: 0; bottom: 167px; padding: 6px 8px; background: #F7F8FB; border-top: 1px solid #DCE1EA; }
-.field { min-height: 26px; border-radius: 13px; background: #FFFFFF; border: 1px solid #D3D9E4; padding: 6px 10px; box-sizing: border-box; font-size: 10px; line-height: 1.4; color: #1E2433; }
-.field .ph { color: #9AA3B5; }
-#comp { border-bottom: 1.5px solid var(--orange); }
-.caret { display: inline-block; width: 1.2px; height: 11px; background: var(--orange); vertical-align: -1.5px; margin-left: 1px; }
-#tpill { position: absolute; left: 50%; top: 66px; transform: translateX(-50%); padding: 5px 12px; border-radius: 12px; background: rgba(20,33,61,.9); color: var(--white); font: 700 10px var(--ja); white-space: nowrap; }
+/* ---- 表題 ---- */
+.title { font-family: var(--mincho); font-weight: 600; color: var(--tori); line-height: 1; }
+.yomi { font-family: var(--mincho); color: var(--kame); letter-spacing: .5em; }
 
-/* ---------- キーボード（アプリと同じ配置：ツールバー＋5列×4段） ---------- */
-#kb {
-  position: absolute; left: 0; right: 0; bottom: 0; padding: 3px; box-sizing: border-box;
-  background: var(--kbg); overflow: hidden;
-  --kbg: #14213D; --kcard: #1F2F52; --kkey: #2A3B63; --ktext: #FFFFFF; --ksub: #9AA7C2; --kon: #14213D;
-}
-.kbimg { position: absolute; inset: 0; opacity: 0;
-  background:
-    radial-gradient(circle at 18% 30%, #F28C28 0, transparent 42%),
-    radial-gradient(circle at 78% 72%, #2F6FD6 0, transparent 48%),
-    radial-gradient(circle at 60% 15%, #E04F5F 0, transparent 35%),
-    linear-gradient(135deg, #3B2A6B, #1D5B78); }
-.kbin { position: relative; }
-.grip { height: 0; display: flex; align-items: center; justify-content: space-between; overflow: hidden; color: var(--ksub); padding: 0 4px; }
-.grip .gl { flex: 1; display: grid; place-items: center; }
-.grip svg { width: 16px; height: 16px; }
-.grip .dock { width: 24px; height: 15px; border-radius: 8px; background: var(--orange); color: var(--kon); display: grid; place-items: center; }
-.grip .dock svg { width: 11px; height: 11px; }
-.tool { display: flex; gap: 3px; height: 24px; align-items: center; }
-.ti { width: 25px; height: 22px; border-radius: 5px; background: var(--kcard); color: var(--ksub); display: grid; place-items: center; flex: 0 0 auto; }
-.ti svg { width: 14px; height: 14px; }
-.ti.on { background: var(--orange); color: var(--kon); }
-.tspace { flex: 1; height: 22px; overflow: hidden; }
-#cands { display: flex; gap: 3px; height: 22px; }
-.cand { padding: 0 7px; border-radius: 3px; background: var(--kcard); color: var(--ktext); font-size: 10px; display: flex; align-items: center; white-space: nowrap; }
-.cand.on { background: var(--orange); color: var(--kon); }
-.sym { position: absolute; inset: 0 1.5px; display: none; flex-direction: column; gap: 3px; }
-.symT { display: flex; gap: 3px; height: 18px; overflow: hidden; }
-.symT div { flex: 0 0 auto; padding: 0 6px; border-radius: 3px; background: var(--kcard); color: var(--ktext); font-size: 8px; display: flex; align-items: center; position: relative; }
-.symT div.cur { background: var(--orange); color: var(--kon); font-weight: 700; }
-.symG { flex: 1; display: grid; grid-template-columns: repeat(6, 1fr); grid-auto-rows: 22px; gap: 2px; overflow: hidden; }
-.symG div { background: var(--kkey); border-radius: 4px; display: grid; place-items: center; font-size: 12px; color: var(--ktext); position: relative; }
-.symG div.on::after, .symT div.on::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: rgba(242,140,40,.45); }
-.kbody { position: relative; display: grid; grid-template-columns: 1fr 3fr 1fr; grid-template-rows: minmax(0, 1fr); height: 134px; margin-top: 3px; }
-.col { display: grid; grid-template-rows: repeat(4, minmax(0, 1fr)); gap: 3px; padding: 0 1.5px; min-height: 0; }
-.center { position: relative; }
-.grid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, minmax(0, 1fr)); gap: 3px; padding: 0 1.5px; }
-.k { min-height: 0; background: var(--kkey); border-radius: 6px; color: var(--ktext); display: grid; place-items: center; font: 500 14px var(--ja); position: relative; }
-.k.s { font-size: 9.5px; }
-.k.en { font: 500 11px var(--en); }
-.k.en.s { font-size: 9.5px; }
-.k svg { width: 14px; height: 14px; }
-.k.on::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: rgba(242,140,40,.4); }
-.k.ent { background: var(--orange); color: var(--kon); border-radius: 14px; }
-.mode { font-size: 8px; white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 2px; }
-.mode span { color: var(--ksub); }
-.mode span.cur { color: var(--orange); font-size: 11px; font-weight: 700; }
-.phr { position: absolute; top: 0; bottom: 0; left: 20%; right: 20%; overflow: hidden; padding: 0 1.5px; display: none; }
-.phrIn { will-change: transform; }
-.hd { color: var(--orange); font: 700 9px var(--ja); margin: 4px 2px 3px; }
-.pg { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
-.pc { background: var(--kkey); border-radius: 6px; padding: 4px 5px; height: 30px; box-sizing: border-box; overflow: hidden; position: relative; }
-.pc b { display: block; font: 700 9.5px var(--ja); color: var(--ktext); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pc span { display: block; font-size: 7.5px; color: var(--ksub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
-.pc.on::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: rgba(242,140,40,.4); }
-.voice { position: absolute; inset: 0 1.5px; background: var(--kcard); border-radius: 6px; padding: 6px 7px; box-sizing: border-box; display: none; flex-direction: column; }
-.vs { color: var(--orange); font: 700 9px var(--ja); display: flex; align-items: center; gap: 4px; }
-.vs svg { width: 11px; height: 11px; }
-.vb { flex: 1; color: var(--ktext); font-size: 9.5px; line-height: 1.5; margin-top: 4px; overflow: hidden; }
-.vbtns { display: flex; gap: 4px; height: 22px; }
-.vbtn { flex: 1; border-radius: 6px; background: var(--kkey); color: var(--ktext); font: 500 8.5px var(--ja); display: grid; place-items: center; position: relative; }
-.vbtn.main { flex: 1.6; background: var(--orange); color: var(--kon); font-weight: 700; }
-.vbtn.on::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: rgba(255,255,255,.35); }
-#foot { position: absolute; left: 0; right: 0; top: 622px; text-align: center; font-size: 9px; color: var(--sub); }
+/* ---- 縦書きの言葉 ---- */
+.tate { writing-mode: vertical-rl; font-family: var(--mincho); line-height: 1.7; letter-spacing: .18em; }
+.tate span { display: inline-block; }
 
-/* ---------- 指 ---------- */
-#finger { position: absolute; left: 0; top: 0; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
-  background: rgba(255,255,255,.38); box-shadow: 0 0 0 2px rgba(255,255,255,.9), 0 4px 10px rgba(0,0,0,.35); opacity: 0; pointer-events: none; }
-#ring { position: absolute; left: 0; top: 0; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; border: 2px solid var(--orange); opacity: 0; pointer-events: none; }
+/* ---- 入力欄 ---- */
+#field { left: 90px; top: 640px; width: 640px; }
+#fieldText { font-size: 46px; line-height: 1.6; min-height: 148px; color: var(--tori); letter-spacing: .02em; }
+#fieldText .comp { border-bottom: 3px solid var(--tori); }
+#fieldText .raw { color: var(--kame); }
+#caret { display: inline-block; width: 3px; height: 50px; background: var(--benihi); vertical-align: -8px; margin-left: 4px; }
+#fieldLine { height: 2px; background: var(--rikyu); margin-top: 18px; }
 
-/* ---------- オープニング・エンディング ---------- */
-.over { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; opacity: 0; }
-.logo { width: 92px; height: 92px; border-radius: 22px; box-shadow: 0 0 0 1.5px rgba(255,255,255,.18), 0 14px 30px rgba(0,0,0,.4); }
-.name { font: 700 27px var(--en); letter-spacing: .12em; margin-top: 22px; }
-.name em { font-style: normal; color: var(--orange); }
-.tag1 { font: 700 16px var(--ja); margin-top: 14px; }
-.tag2 { font-size: 10.5px; color: var(--sub); margin-top: 8px; }
-#end .card { width: 292px; padding: 26px 18px 22px; border-radius: 22px; background: rgba(31,47,82,.92); box-shadow: 0 0 0 1px #33456F, 0 18px 40px rgba(0,0,0,.4); box-sizing: border-box; display: flex; flex-direction: column; align-items: center; }
-#end .logo { width: 64px; height: 64px; border-radius: 16px; }
-#end .name { font-size: 22px; margin-top: 14px; }
-#end .tag1 { font-size: 14px; margin-top: 8px; }
-.tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 18px; }
-.tags span { font: 500 10.5px var(--ja); padding: 5px 10px; border-radius: 4px; border: 1px solid var(--orange); color: var(--white); background: rgba(242,140,40,.1); }
-#end .tag2 { margin-top: 16px; }
+/* ---- キーボード ---- */
+#kb { left: 0; top: 1000px; width: 1080px; height: 920px; --kbg: #264348; --ktext: #E2BE9F; --kline: #656255; --kon: #264348; background: var(--kbg); }
+#kbTop { position: absolute; left: 0; top: 0; width: 1080px; height: 2px; background: var(--kline); }
+#tool { position: absolute; left: 40px; right: 40px; top: 20px; height: 90px; display: flex; align-items: center; gap: 46px; }
+#tool svg { width: 52px; height: 52px; fill: none; stroke: var(--ktext); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; opacity: .75; }
+#tool svg.on { stroke: var(--benihi); opacity: 1; }
+#cand { position: absolute; left: 40px; right: 40px; top: 118px; height: 96px; display: flex; align-items: center; gap: 56px; font-size: 44px; color: var(--ktext); border-bottom: 1px solid var(--kline); }
+#cand span.sel { border-bottom: 3px solid var(--benihi); padding-bottom: 6px; }
+#grid { position: absolute; left: 28px; right: 28px; top: 240px; height: 640px; display: grid; grid-template-columns: .82fr 1fr 1fr 1fr .82fr; grid-template-rows: repeat(4, minmax(0,1fr)); gap: 14px; }
+.k { border: 2px solid var(--kline); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 50px; color: var(--ktext); position: relative; will-change: transform; }
+.k.s { font-size: 34px; }
+.k.ent { background: var(--benihi); border-color: var(--benihi); color: var(--kon); grid-row: span 2; font-size: 40px; letter-spacing: .1em; }
+.k .hl { position: absolute; inset: 0; background: var(--ktext); opacity: 0; border-radius: 2px; }
+.k .fl { position: absolute; left: 50%; top: -96px; width: 96px; height: 96px; margin-left: -48px; border: 2px solid var(--benihi); background: var(--kbg); color: var(--ktext); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 54px; opacity: 0; z-index: 3; }
 
-@media (prefers-reduced-motion: reduce) {
-  .ctrl button { transition: none; }
-}
+/* ---- 定型文パネル ---- */
+#phr { position: absolute; left: 40px; right: 40px; top: 230px; height: 660px; opacity: 0; }
+#phr .cat { font-family: var(--mincho); color: var(--benihi); font-size: 30px; letter-spacing: .3em; padding: 8px 0 18px; border-bottom: 2px solid var(--kline); }
+#phr .row { display: flex; align-items: baseline; justify-content: space-between; padding: 30px 6px; border-bottom: 1px solid var(--kline); position: relative; }
+#phr .row b { font-weight: 400; font-size: 40px; color: var(--ktext); }
+#phr .row i { font-style: normal; font-size: 28px; color: var(--kame); max-width: 560px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#phr .row .hl { position: absolute; inset: 0; background: var(--ktext); opacity: 0; }
+
+/* ---- 音声パネル ---- */
+#voice { position: absolute; left: 0; right: 0; top: 230px; height: 660px; opacity: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 44px; }
+#vRing { width: 200px; height: 200px; border-radius: 50%; border: 2px solid var(--benihi); position: relative; display: flex; align-items: center; justify-content: center; }
+#vRing2 { position: absolute; inset: -2px; border-radius: 50%; border: 2px solid var(--benihi); }
+#vRing svg { width: 80px; height: 80px; fill: none; stroke: var(--tori); stroke-width: 2; stroke-linecap: round; }
+#vState { font-family: var(--mincho); font-size: 32px; letter-spacing: .4em; color: var(--kame); }
+
+/* ---- タップの輪 ---- */
+.tap { position: absolute; width: 120px; height: 120px; margin: -60px 0 0 -60px; border: 2px solid var(--benihi); border-radius: 50%; opacity: 0; pointer-events: none; z-index: 5; }
+
+/* ---- 場面の言葉（縦書き・右上） ---- */
+#cap { right: 70px; top: 150px; height: 780px; }
+#capNo { font-family: var(--mincho); color: var(--benihi); font-size: 40px; writing-mode: vertical-rl; letter-spacing: .3em; position: absolute; right: 0; top: 0; }
+#capText { position: absolute; right: 74px; top: 0; height: 780px; font-size: 70px; color: var(--tori); }
+
+/* ---- 下の操作（ページで見るとき） ---- */
+#ctl { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; font-family: var(--gothic); }
+#ctl button { background: transparent; color: #E2BE9F; border: 1px solid #656255; border-radius: 2px; padding: 8px 18px; font-size: 14px; font-family: inherit; letter-spacing: .1em; cursor: pointer; }
+#bar { width: 180px; height: 2px; background: #656255; }
+#barIn { height: 2px; width: 0; background: #E2BE9F; }
 </style>
+</head>
+<body>
+<div id="wrap"><div id="stage">
 
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <defs>
-    <!-- アプリに入っている手作りアイコン（res/drawable/ic_kb_*.xml と同じ形） -->
-    <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.8,12a6.2,6.2 0 1,0 12.4,0a6.2,6.2 0 1,0 -12.4,0"/><path d="M9.6,12a2.4,2.4 0 1,0 4.8,0a2.4,2.4 0 1,0 -4.8,0"/><path d="M12,2.5v3M12,18.5v3M2.5,12h3M18.5,12h3M5.3,5.3l2.1,2.1M16.6,16.6l2.1,2.1M5.3,18.7l2.1,-2.1M16.6,7.4l2.1,-2.1"/></symbol>
-    <symbol id="i-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12,3a3,3 0 0 1 3,3v5a3,3 0 0 1 -6,0v-5a3,3 0 0 1 3,-3z"/><path d="M5.5,11a6.5,6.5 0 0 0 13,0M12,17.5V21M9,21h6"/></symbol>
-    <symbol id="i-hand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.2,3h4.6a2.2,2.2 0 0 1 2.2,2.2v13.6a2.2,2.2 0 0 1 -2.2,2.2h-4.6a2.2,2.2 0 0 1 -2.2,-2.2v-13.6a2.2,2.2 0 0 1 2.2,-2.2z"/><path d="M14.5,17.5h2M3,12h5M6,9l-3,3 3,3"/></symbol>
-    <symbol id="i-undo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5,5.5L4,10l4.5,4.5"/><path d="M4,10h10a5,5 0 0 1 0,10h-3"/></symbol>
-    <symbol id="i-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5,5H20a1,1 0 0 1 1,1v12a1,1 0 0 1 -1,1H8.5L3,12z"/><path d="M11.5,9.5l5,5M16.5,9.5l-5,5"/></symbol>
-    <symbol id="i-enter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M19,5v6a3,3 0 0 1 -3,3H5"/><path d="M9,10l-4,4 4,4"/></symbol>
-    <symbol id="i-space" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4,10v4h16v-4"/></symbol>
-    <symbol id="i-left" viewBox="0 0 24 24" fill="currentColor"><path d="M15,6.5v11L7.5,12z"/></symbol>
-    <symbol id="i-right" viewBox="0 0 24 24" fill="currentColor"><path d="M9,6.5v11l7.5,-5.5z"/></symbol>
-    <symbol id="i-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14,4h6v6M10,20H4v-6M20,4l-6.5,6.5M4,20l6.5,-6.5"/></symbol>
-    <symbol id="i-phrase" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7,3h10a2,2 0 0 1 2,2v14a2,2 0 0 1 -2,2h-10a2,2 0 0 1 -2,-2v-14a2,2 0 0 1 2,-2z"/><path d="M9,8h6M9,12h6M9,16h4"/></symbol>
-    <symbol id="i-tilt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5,3.5h4a1,1 0 0 1 1,1v4a1,1 0 0 1 -1,1h-4a1,1 0 0 1 -1,-1v-4a1,1 0 0 1 1,-1z"/><path d="M9,7h4a1,1 0 0 1 1,1v4a1,1 0 0 1 -1,1h-4a1,1 0 0 1 -1,-1v-4a1,1 0 0 1 1,-1z"/><path d="M3.5,11.5h4a1,1 0 0 1 1,1v4a1,1 0 0 1 -1,1h-4a1,1 0 0 1 -1,-1v-4a1,1 0 0 1 1,-1z"/><path d="M4,21c5,-1 11,-5 16,-9"/></symbol>
-    <symbol id="i-float" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4,6h12a1.5,1.5 0 0 1 1.5,1.5v8a1.5,1.5 0 0 1 -1.5,1.5h-12a1.5,1.5 0 0 1 -1.5,-1.5v-8a1.5,1.5 0 0 1 1.5,-1.5z"/><path d="M7.5,9.5h5M20.5,10v9a1.5,1.5 0 0 1 -1.5,1.5h-12"/></symbol>
-    <symbol id="i-drag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5,9.5h14M5,14.5h14"/></symbol>
-    <!-- アプリのアイコン（res/drawable/ic_launcher.xml と同じ形） -->
-    <symbol id="i-logo" viewBox="0 0 48 48"><path fill="#14213D" d="M8,0h32a8,8 0 0 1 8,8v32a8,8 0 0 1 -8,8h-32a8,8 0 0 1 -8,-8v-32a8,8 0 0 1 8,-8z"/><path fill="#F28C28" d="M9,14h30a3,3 0 0 1 3,3v15a3,3 0 0 1 -3,3h-30a3,3 0 0 1 -3,-3v-15a3,3 0 0 1 3,-3z"/><path fill="#14213D" d="M10,18h4v3h-4z M16,18h4v3h-4z M22,18h4v3h-4z M28,18h4v3h-4z M34,18h4v3h-4z M10,23h4v3h-4z M16,23h4v3h-4z M22,23h4v3h-4z M28,23h4v3h-4z M34,23h4v3h-4z M15,28h18v3h-18z"/></symbol>
-  </defs>
-</svg>
+  <!-- 一枚目：しるしと表題 -->
+  <svg id="mark" class="abs mark" viewBox="0 0 108 108" style="left:340px; top:420px; width:400px; height:400px">
+    <line id="mLine" x1="54" y1="30" x2="54" y2="78" stroke="#C6C2B6" stroke-width="1.4" />
+    <line class="st" x1="46.5" y1="38" x2="61.5" y2="38" stroke="#F35336" stroke-width="3.2" />
+    <line class="st" x1="46.5" y1="48.7" x2="61.5" y2="48.7" stroke="#F35336" stroke-width="3.2" />
+    <line class="st" x1="46.5" y1="59.3" x2="61.5" y2="59.3" stroke="#F35336" stroke-width="3.2" />
+    <line class="st" x1="46.5" y1="70" x2="61.5" y2="70" stroke="#F35336" stroke-width="3.2" />
+  </svg>
+  <div id="title" class="abs title o0" style="left:0; width:1080px; top:900px; text-align:center; font-size:280px">綴</div>
+  <div id="yomi" class="abs yomi o0" style="left:0; width:1080px; top:1230px; text-align:center; font-size:46px; padding-left:.5em">つづり</div>
 
-<div id="wrap" role="img" aria-label="Kooky Keyboardの広告アニメーション。定型文、ライブ変換、扇形のキー、記号と絵文字、英語・数字の切り替え、音声入力のAI添削、フローティング、着せかえを順に紹介する約29秒のループ">
-  <div id="stage">
-    <div id="cap"><div id="capL"></div><div id="capJ"></div></div>
+  <!-- 二枚目：縦書きの言葉 -->
+  <div id="copy" class="abs o0" style="left:0; top:0; width:1080px; height:1920px">
+    <div id="copy1" class="abs tate" style="left:560px; top:560px; font-size:110px; color:#E2BE9F"></div>
+    <div id="copy2" class="abs tate" style="left:420px; top:760px; font-size:44px; color:rgba(198,194,182,.7)"></div>
+  </div>
 
-    <div id="phone">
-      <div id="screen">
-        <div class="sbar"><span>9:41</span><i></i></div>
-        <div class="apphead"><b></b>チャット</div>
-        <div class="chat">
-          <div class="bub">明日の予定、確認お願いします</div>
-          <div class="bub me">了解です。夕方までに返信します</div>
-          <div class="bub">資料も一緒にお願いします</div>
-          <div class="bub me">承知しました</div>
-          <div class="bub">ありがとうございます</div>
-        </div>
-        <div id="tpill"></div>
-        <div class="inbar" id="inbar"><div class="field"><span id="inTxt"></span><span id="comp"></span><i class="caret" id="caret"></i><span id="inAfter"></span><span class="ph" id="ph">メッセージを入力</span></div></div>
-
-        <div id="kb">
-          <div class="kbimg" id="kbimg"></div>
-          <div class="kbin">
-            <div class="grip" id="grip"><div class="gl" id="gripL"><svg><use href="#i-drag"/></svg></div><div class="dock"><svg><use href="#i-expand"/></svg></div></div>
-            <div class="tool">
-              <div class="ti" id="tGear"><svg><use href="#i-gear"/></svg></div>
-              <div class="tspace"><div id="cands"></div></div>
-              <div class="ti" id="tPhr"><svg><use href="#i-phrase"/></svg></div>
-              <div class="ti" id="tFlt"><svg><use href="#i-float"/></svg></div>
-              <div class="ti" id="tTilt"><svg><use href="#i-tilt"/></svg></div>
-              <div class="ti" id="tHand"><svg><use href="#i-hand"/></svg></div>
-              <div class="ti" id="tMic"><svg><use href="#i-mic"/></svg></div>
-            </div>
-            <div class="kbody" id="kbody">
-              <div class="col">
-                <div class="k"><svg><use href="#i-undo"/></svg></div>
-                <div class="k"><svg><use href="#i-left"/></svg></div>
-                <div class="k en" style="font-size:14px">@</div>
-                <div class="k mode" id="kMode"><span>あ</span><span>A</span><span>1</span></div>
-              </div>
-              <div class="center">
-                <div class="grid" id="gJa"></div>
-                <div class="grid" id="gEn"></div>
-                <div class="grid" id="gNum"></div>
-                <div class="sym" id="sym"><div class="symT" id="symT"></div><div class="symG" id="symG"></div></div>
-                <div class="voice" id="voice">
-                  <div class="vs" id="vs"></div>
-                  <div class="vb" id="vb"></div>
-                  <div class="vbtns"><div class="vbtn" id="vSub">キャンセル</div><div class="vbtn main" id="vMain">添削して入力</div></div>
-                </div>
-              </div>
-              <div class="col">
-                <div class="k" id="kBack"><svg><use href="#i-back"/></svg></div>
-                <div class="k"><svg><use href="#i-right"/></svg></div>
-                <div class="k" id="kSpace"><svg><use href="#i-space"/></svg></div>
-                <div class="k ent" id="kEnt"><svg><use href="#i-enter"/></svg></div>
-              </div>
-              <div class="phr" id="phr"><div class="phrIn" id="phrIn"></div></div>
-            </div>
-          </div>
-        </div>
+  <!-- 使っているところ -->
+  <div id="demo" class="abs o0" style="left:0; top:0; width:1080px; height:1920px">
+    <div id="cap" class="abs">
+      <div id="capNo"></div>
+      <div id="capText" class="tate"></div>
+    </div>
+    <div id="field" class="abs">
+      <div id="fieldText"><span id="ftA"></span><span id="caret"></span></div>
+      <div id="fieldLine"></div>
+    </div>
+    <div id="kb" class="abs">
+      <div id="kbTop"></div>
+      <div id="tool">
+        <svg id="tPhr" viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h9"/></svg>
+        <svg id="tFan" viewBox="0 0 24 24"><rect x="2.8" y="11.8" width="4.6" height="4.6" rx="1"/><rect x="9.7" y="7.8" width="4.6" height="4.6" rx="1"/><rect x="16.6" y="11.8" width="4.6" height="4.6" rx="1"/><path d="M9,19.5A3.5,3.5 0 0 1 15,19.5"/></svg>
+        <svg id="tMic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>
+        <svg id="tCol" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor" stroke="none" style="fill:var(--ktext)"/></svg>
+      </div>
+      <div id="cand"></div>
+      <div id="grid"></div>
+      <div id="phr">
+        <div class="cat">接客</div>
+        <div class="row" id="r1"><b>来店お礼</b><i>本日はご来店いただき、ありがとうございます。</i><span class="hl"></span></div>
+        <div class="row"><b>予約確認</b><i>ご予約ありがとうございます。</i><span class="hl"></span></div>
+        <div class="row"><b>お待たせ</b><i>大変お待たせいたしました。</i><span class="hl"></span></div>
+        <div class="row"><b>承知しました</b><i>承知しました。対応いたします。</i><span class="hl"></span></div>
+      </div>
+      <div id="voice">
+        <div id="vRing"><div id="vRing2"></div><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></div>
+        <div id="vState">聞き取り中</div>
       </div>
     </div>
-
-    <div id="foot">※ AI添削を使うには、Gemini APIキーの設定が必要です</div>
-
-    <div class="over" id="open">
-      <svg class="logo" id="oLogo"><use href="#i-logo"/></svg>
-      <div class="name" id="oName"><em>KOOKY</em> KEYBOARD</div>
-      <div class="tag1" id="oTag1">仕事の文字入力を、もっと速く。</div>
-      <div class="tag2" id="oTag2">定型文・文章変換・音声AI添削のキーボード</div>
-    </div>
-
-    <div class="over" id="end">
-      <div class="card" id="eCard">
-        <svg class="logo"><use href="#i-logo"/></svg>
-        <div class="name"><em>KOOKY</em> KEYBOARD</div>
-        <div class="tag1">仕事の文字入力を、もっと速く。</div>
-        <div class="tags" id="eTags"></div>
-        <div class="tag2">Android用・自作キーボード</div>
-      </div>
-    </div>
-
-    <div id="ring"></div>
-    <div id="finger"></div>
+    <div id="tap" class="tap"></div>
   </div>
-</div>
 
-<div id="under">
-  <div class="ctrl">
-    <button id="bPlay" class="main" type="button">一時停止</button>
-    <button id="bRestart" type="button">最初から再生</button>
+  <!-- 終わり -->
+  <div id="end" class="abs o0" style="left:0; top:0; width:1080px; height:1920px">
+    <svg id="eMark" class="abs mark" viewBox="0 0 108 108" style="left:415px; top:470px; width:250px; height:250px">
+      <line id="eLine" x1="54" y1="30" x2="54" y2="78" stroke="#C6C2B6" stroke-width="1.4" />
+      <line class="est" x1="46.5" y1="38" x2="61.5" y2="38" stroke="#F35336" stroke-width="3.2" />
+      <line class="est" x1="46.5" y1="48.7" x2="61.5" y2="48.7" stroke="#F35336" stroke-width="3.2" />
+      <line class="est" x1="46.5" y1="59.3" x2="61.5" y2="59.3" stroke="#F35336" stroke-width="3.2" />
+      <line class="est" x1="46.5" y1="70" x2="61.5" y2="70" stroke="#F35336" stroke-width="3.2" />
+    </svg>
+    <div id="eTitle" class="abs title" style="left:0; width:1080px; top:770px; text-align:center; font-size:220px">綴</div>
+    <div id="eYomi" class="abs yomi" style="left:0; width:1080px; top:1030px; text-align:center; font-size:40px; padding-left:.5em">つづり</div>
+    <div id="eRule" class="abs" style="left:490px; top:1170px; width:100px; height:2px; background:#F35336"></div>
+    <div id="eTag" class="abs" style="left:0; width:1080px; top:1220px; text-align:center; font-size:32px; color:rgba(198,194,182,.7); letter-spacing:.35em; padding-left:.35em; font-family:var(--mincho)">定型文　変換　扇形　声</div>
+    <div id="eSub" class="abs" style="left:0; width:1080px; top:1300px; text-align:center; font-size:30px; color:rgba(198,194,182,.7); letter-spacing:.3em; padding-left:.3em; font-family:var(--mincho)">言葉を綴る、日本語のキーボード</div>
   </div>
-  <div id="bar"><div id="barIn"></div></div>
-  <div id="time">0.0 / 29.0 秒</div>
-</div>
+
+</div></div>
+
+<div id="ctl"><button id="play" type="button">再生</button><div id="bar"><div id="barIn"></div></div></div>
 
 <script>
 (() => {
-  const VIDEO = window.VIDEO_MODE === true;
-  const D = 29.0;
+  const D = 30;                       // 全体の長さ（秒）
   const $ = (id) => document.getElementById(id);
-  const stage = $("stage"), wrap = $("wrap");
-
-  // ---------- 便利関数 ----------
   const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const prog = (t, a, b) => clamp((t - a) / (b - a));
   const ease = (p) => { p = clamp(p); return p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; };
   const out = (p) => { p = clamp(p); return 1 - Math.pow(1 - p, 3); };
-  const prog = (t, a, b) => clamp((t - a) / (b - a));
-  const setT = (el, s) => { if (el.textContent !== s) el.textContent = s; };
-  const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
-  const mix = (a, b, p) => a.map((v, i) => Math.round(v + (b[i] - v) * p));
-  const rgba = (c, al = 1) => `rgba(${c[0]},${c[1]},${c[2]},${al})`;
+  const fade = (t, a, b, c, d) => Math.min(out(prog(t, a, b)), 1 - ease(prog(t, c, d)));
+  const set = (el, k, v) => { if (el.style[k] !== v) el.style[k] = v; };
+  const html = (el, s) => { if (el._h !== s) { el._h = s; el.innerHTML = s; } };
 
-  // ---------- キーを作る ----------
-  const JA = [["a","あ"],["ka","か"],["sa","さ"],["ta","た"],["na","な"],["ha","は"],["ma","ま"],["ya","や"],["ra","ら"],["dk","小゛゜"],["wa","わ"],["pu","、。?!"]];
-  const EN = [["e1","@#/&_"],["abc","abc"],["def","def"],["ghi","ghi"],["jkl","jkl"],["mno","mno"],["pqrs","pqrs"],["tuv","tuv"],["wxyz","wxyz"],["case","a/A"],["q","'\"()"],["p",".,?!"]];
-  const NUM = [["1","1"],["2","2"],["3","3"],["4","4"],["5","5"],["6","6"],["7","7"],["8","8"],["9","9"],["br","()[]"],["0","0"],["np",".,-/"]];
+  // ---------- 縦書きの言葉（1文字ずつ出す） ----------
+  function chars(el, s) { el.innerHTML = [...s].map((c) => c === "\n" ? "<br>" : `<span>${c}</span>`).join(""); return [...el.querySelectorAll("span")]; }
+  const c1 = chars($("copy1"), "言葉を、\n綴る。");
+  const c2 = chars($("copy2"), "日本語の、静かなキーボード。");
+
+  // ---------- キー ----------
+  const LAYOUT = [
+    ["↶", "あ", "か", "さ", "⌫"],
+    ["◀", "た", "な", "は", "空白"],
+    ["あA1", "ま", "や", "ら", "確定"],
+    ["記号", "小゛゜", "わ", "、。?!"]
+  ];
   const K = {};
-  function fill(grid, list, cls) {
-    for (const [id, lab] of list) {
-      const d = document.createElement("div");
-      d.className = "k " + cls + (lab.length > 2 ? " s" : "");
-      d.textContent = lab;
-      d.dataset.lab = lab;
-      grid.appendChild(d);
-      K[grid.id + ":" + id] = d;
-    }
+  for (const row of LAYOUT) for (const lab of row) {
+    const d = document.createElement("div");
+    d.className = "k" + (lab.length > 2 || lab === "空白" ? " s" : "") + (lab === "確定" ? " ent" : "");
+    d.innerHTML = `<span class="lab">${lab}</span><span class="hl"></span><span class="fl"></span>`;
+    $("grid").appendChild(d);
+    K[lab] = d;
   }
-  fill($("gJa"), JA, "");
-  fill($("gEn"), EN, "en");
-  fill($("gNum"), NUM, "en");
-  const allKeys = [...document.querySelectorAll(".k")];
-  const modeSpans = [...$("kMode").querySelectorAll("span")];
-
-  // ---------- 定型文パネル（中身はデモ用の作り物） ----------
-  const PHR = [
-    ["接客", [["来店お礼","本日はご来店いただき、ありがとうございます。"],["予約確認","ご予約ありがとうございます。当日お待ちしております。"],["お待たせ","大変お待たせいたしました。"],["受付のご案内","受付は2階のカウンターです。"]]],
-    ["社内連絡", [["お疲れさまです","お疲れさまです。"],["承知しました","承知しました。対応いたします。"],["シフト提出","来月のシフト希望の提出をお願いします。"],["遅れます","10分ほど遅れます。申し訳ありません。"]]]
-  ];
-  const PC = {};
-  for (const [cat, items] of PHR) {
-    const h = document.createElement("div"); h.className = "hd"; h.textContent = cat; $("phrIn").appendChild(h);
-    const g = document.createElement("div"); g.className = "pg";
-    for (const [ti, body] of items) {
-      const c = document.createElement("div"); c.className = "pc";
-      c.innerHTML = "<b></b><span></span>"; c.children[0].textContent = ti; c.children[1].textContent = body;
-      g.appendChild(c); PC[ti] = c;
-    }
-    $("phrIn").appendChild(g);
+  const keys = Object.values(K);
+  const gridEl = $("grid");
+  // 扇形のための、もとの位置（キーボードの中の座標）
+  let base = null;
+  function measure() {
+    base = keys.map((k) => ({ x: k.offsetLeft + k.offsetWidth / 2, y: k.offsetTop + k.offsetHeight / 2 }));
   }
 
-  // ---------- エンディングの機能タグ（今アプリに入っている機能だけ） ----------
-  const TAGS = ["定型文パネル","ライブ変換","扇形キー","記号・絵文字","英語・数字フリック","音声入力＋AI添削","フローティング","着せかえ・背景画像","単語登録"];
-  const tagEls = TAGS.map((s) => { const e = document.createElement("span"); e.textContent = s; $("eTags").appendChild(e); return e; });
-
-  // ---------- 配色（アプリの Themes と同じ値） ----------
-  const TH = {
-    navy:  { bg: hex("#14213D"), card: hex("#1F2F52"), key: hex("#2A3B63"), text: hex("#FFFFFF"), sub: hex("#9AA7C2"), on: hex("#14213D") },
-    black: { bg: hex("#0E0E10"), card: hex("#1C1C1F"), key: hex("#2B2B30"), text: hex("#FFFFFF"), sub: hex("#9A9AA2"), on: hex("#111111") },
-    light: { bg: hex("#F2F0EB"), card: hex("#E2DFD8"), key: hex("#FFFFFF"), text: hex("#1E1E1E"), sub: hex("#6B6B6B"), on: hex("#1E1E1E") }
-  };
-  function theme(a, b, p, bgA = 1, keyA = 1) {
-    const kb = $("kb").style, A = TH[a], B = TH[b];
-    kb.setProperty("--kbg", rgba(mix(A.bg, B.bg, p), bgA));
-    kb.setProperty("--kcard", rgba(mix(A.card, B.card, p), Math.min(1, keyA + .15)));
-    kb.setProperty("--kkey", rgba(mix(A.key, B.key, p), keyA));
-    kb.setProperty("--ktext", rgba(mix(A.text, B.text, p)));
-    kb.setProperty("--ksub", rgba(mix(A.sub, B.sub, p)));
-    kb.setProperty("--kon", rgba(mix(A.on, B.on, p)));
-  }
-
-  // ---------- 指 ----------
-  // 指の座標はステージ（360×640）の単位。要素の真ん中を毎回測る（キーボードが動いても追いかける）
-  function center(el) {
-    const sr = stage.getBoundingClientRect(), r = el.getBoundingClientRect(), k = sr.width / 360;
-    return [(r.left + r.width / 2 - sr.left) / k, (r.top + r.height / 2 - sr.top) / k];
-  }
-  const DIR = [[0, 0], [-1, 0], [0, -1], [1, 0], [0, 1]];
-  // pts: [{t, el, dir(フリック方向), hold(次の点まで押したまま)}]
-  function finger(lt, pts) {
-    const f = $("finger").style, r = $("ring").style;
-    if (!pts.length) return;
-    const first = pts[0], last = pts[pts.length - 1];
-    let i = 0;
-    while (i < pts.length - 1 && lt >= pts[i + 1].t) i++;
-    const a = pts[i], b = pts[i + 1];
-    let [x, y] = center(a.el);
-    if (lt < first.t) {
-      const p = out(prog(lt, first.t - .45, first.t - .1));
-      y += 26 * (1 - p);
-      f.opacity = p;
-    } else {
-      f.opacity = 1 - prog(lt, last.t + .35, last.t + .55);
-    }
-    if (b && lt >= a.t) {
-      const gap = b.t - a.t, mv = Math.min(.3, gap - .14);
-      const p = ease(prog(lt, b.t - mv, b.t));
-      const [bx, by] = center(b.el);
-      if (p > 0) { x += (bx - x) * p; y += (by - y) * p; }
-    }
-    // タップ・フリックの動き
-    let press = 0;
-    for (const pt of pts) {
-      const d = lt - pt.t;
-      if (d >= 0 && d < .18) {
-        press = 1;
-        if (pt.dir) {
-          const q = out(d / .12); let [dx, dy] = DIR[pt.dir];
-          if (pt.rot) { const r = pt.rot * Math.PI / 180, c = Math.cos(r), s2 = Math.sin(r); [dx, dy] = [dx * c - dy * s2, dx * s2 + dy * c]; }
-          x += dx * 15 * q; y += dy * 15 * q;
-        }
-        r.opacity = 1 - d / .18;
-        r.transform = `translate(${x}px,${y}px) scale(${1 + d * 6})`;
-      }
-      if (pt.hold && lt >= pt.t) { const nx = pts[pts.indexOf(pt) + 1]; if (nx && lt < nx.t) press = 1; }
-    }
-    f.transform = `translate(${x}px,${y}px) scale(${press ? .86 : 1})`;
-  }
-  const tapping = (lt, t) => lt >= t && lt < t + .18;
-
-  // ---------- 各場面 ----------
-  const SCENES = [
-    { s: 2.2,  e: 5.2,  l: "TEMPLATE", j: "よく使う文は、ワンタップ。", f: sTemplate },
-    { s: 5.2,  e: 8.2,  l: "LIVE",     j: "打ちながら、そのまま変換。", f: sFlick },
-    { s: 8.2,  e: 11.2, l: "FAN",      j: "親指に合わせて、扇形に。", f: sFan },
-    { s: 11.2, e: 14.2, l: "SYMBOL",   j: "記号も絵文字も、長押しで。", f: sSym },
-    { s: 14.2, e: 17.2, l: "ENGLISH",  j: "英語も数字も、キーひとつで。", f: sEnglish },
-    { s: 17.2, e: 20.2, l: "VOICE",    j: "長押しで、AIがビジネス敬語に。", f: sVoice },
-    { s: 20.2, e: 23.2, l: "FLOAT",    j: "どこにでも置ける、フローティング。", f: sFloat },
-    { s: 23.2, e: 26.2, l: "THEME",    j: "色も背景も、自分好みに。", f: sTheme }
+  // ---------- 場面 ----------
+  const SC = [
+    { s: 8.0,  e: 11.0, no: "一", tx: "よく使う文は、<br>ひと触れで。" },
+    { s: 11.0, e: 14.5, no: "二", tx: "打ちながら、<br>漢字に。" },
+    { s: 14.5, e: 17.5, no: "三", tx: "親指に、<br>沿う。" },
+    { s: 17.5, e: 20.5, no: "四", tx: "声を、<br>敬語に。" },
+    { s: 20.5, e: 23.5, no: "五", tx: "藍と、<br>鳥の子。" }
   ];
 
-  let st;
-  function resetState() {
-    st = { fan: 0, sym: false, symCat: 1, symOn: -1, ent: "", text: "", after: "", comp: "", mode: 0, phr: false, phrScroll: 0, voice: false, cands: null, candOn: -1, on: [], label: {}, fl: 0, dx: 0, dy: 0, inbarDrop: 0, tpill: "", foot: 0 };
-    theme("navy", "navy", 0);
-    $("kbimg").style.opacity = 0;
-    for (const id of ["tGear", "tPhr", "tFlt", "tTilt", "tHand", "tMic"]) $(id).classList.remove("on");
-    $("finger").style.opacity = 0; $("ring").style.opacity = 0;
-  }
-
-  function sTemplate(lt) {
-    const tIcon = .55, tCell = 1.55;
-    finger(lt, [{ t: tIcon, el: $("tPhr") }, { t: tCell, el: PC["来店お礼"] }, { t: 2.6, el: PC["来店お礼"] }]);
-    if (lt >= tIcon) { st.phr = true; $("tPhr").classList.add("on"); }
-    if (tapping(lt, tIcon)) st.on.push($("tPhr"));
-    if (tapping(lt, tCell)) st.on.push(PC["来店お礼"]);
-    if (lt >= tCell) st.text = "本日はご来店いただき、ありがとうございます。";
-    st.phrScroll = 74 * ease(prog(lt, 2.2, 2.9));
-  }
-
-  // おせわになっております をフリックで入力（ライブ変換：打ちながら漢字に）→ 確定キー
-  const FL = [["a",4,"お"],["sa",3,"せ"],["wa",0,"わ"],["na",1,"に"],["na",0,"な"],["ta",2,"つ"],["dk",0,"っ"],["ta",3,"て"],["a",4,"お"],["ra",1,"り"],["ma",0,"ま"],["sa",2,"す"]];
-  const kata = (s) => s.replace(/[ぁ-ゖ]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0x60));
+  // おせわになっております（フリック入力 → ライブ変換）
+  const FL = [["あ", "お", 4], ["さ", "せ", 3], ["わ", "わ", 0], ["な", "に", 1], ["な", "な", 0], ["た", "つ", 2], ["小゛゜", "っ", 0], ["た", "て", 3], ["あ", "お", 4], ["ら", "り", 1], ["ま", "ま", 0], ["さ", "す", 2]];
   const live = (c) => c.length >= 3 ? "お世話" + c.slice(3) : c;
-  function sFlick(lt) {
-    const t0 = .35, dt = .13, tEnt = 2.3;
-    const pts = FL.map(([k, d], i) => ({ t: t0 + i * dt, el: K["gJa:" + k], dir: d }));
-    let comp = "";
-    FL.forEach(([k, d, c], i) => {
-      const t = t0 + i * dt;
-      if (lt >= t) { if (c === "っ") comp = comp.slice(0, -1) + "っ"; else comp += c; }
-      if (tapping(lt, t)) { st.on.push(K["gJa:" + k]); if (d) st.label["gJa:" + k] = c; }
-    });
-    if (lt < tEnt) {
-      st.comp = live(comp);
-      if (comp) { st.cands = [live(comp), comp, kata(comp)]; st.candOn = 0; st.ent = "確定"; }
-    } else {
-      st.text = "お世話になっております";
-    }
-    if (tapping(lt, tEnt)) st.on.push($("kEnt"));
-    pts.push({ t: tEnt, el: $("kEnt") });
-    pts.push({ t: 2.8, el: $("kEnt") });
-    st._finger = pts;
-  }
+  const DIRV = [[0, 0], [-1, 0], [0, -1], [1, 0], [0, 1]];
 
-  // 扇形：ツールバーのボタンでキーが段違いに並び、フリックも列の向きに合わせて斜めに
-  function sFan(lt) {
-    const tIcon = .45, f1 = 1.55, f2 = 2.15;
-    if (lt >= tIcon) $("tTilt").classList.add("on");
-    if (tapping(lt, tIcon)) st.on.push($("tTilt"));
-    st.fan = ease(prog(lt, tIcon + .05, tIcon + .6));
-    let comp = "";
-    if (lt >= f1) comp += "つ";
-    if (lt >= f2) comp += "き";
-    if (tapping(lt, f1)) { st.on.push(K["gJa:ta"]); st.label["gJa:ta"] = "つ"; }
-    if (tapping(lt, f2)) { st.on.push(K["gJa:ka"]); st.label["gJa:ka"] = "き"; }
-    if (comp) { st.comp = comp === "つき" ? "月" : comp; st.cands = comp === "つき" ? ["月", "付き", "つき", "ツキ"] : ["つ", "ツ"]; st.candOn = 0; st.ent = "確定"; }
-    st._finger = [{ t: tIcon, el: $("tTilt") }, { t: f1, el: K["gJa:ta"], dir: 2, rot: st.fanRot.ta }, { t: f2, el: K["gJa:ka"], dir: 1, rot: st.fanRot.ka }, { t: 2.7, el: K["gJa:ka"] }];
-  }
-
-  // 記号・絵文字：あA1を長押し → パネル → 「顔」→ 絵文字をタップ
-  const SYM = [
-    ["最近", []],
-    ["記号", "、 。 ・ … ！ ？ ※ 〒 ＋ － × ÷ ＝ ≠ ＜ ＞ ％ ＃ ＆ ＠ ♪ ☆ ★ ○ ● ◎ △ ▲ □ ■ → ←".split(" ")],
-    ["括弧", "「 」 『 』 （ ） 【 】 〈 〉 《 》 〔 〕 ［ ］".split(" ")],
-    ["顔", "😀 😃 😄 😁 😆 😅 😂 🙂 😉 😊 😇 🥰 😍 🤩 😘 😋 😜 🤗 🤔 😎 🥳 😳 🥺 😭".split(" ")],
-    ["手・人", "👍 👌 ✌️ 👏 🙌 🙏 💪 👋 🙇".split(" ")],
-    ["ハート", "❤️ 🧡 💛 💚 💙 💜 💕 💖".split(" ")]
-  ];
-  function sSym(lt) {
-    const tDown = .35, tLong = .95, tTab = 1.5, tE1 = 2.0, tE2 = 2.4;
-    if (lt >= tDown && lt < tLong + .1) st.on.push($("kMode"));
-    if (lt >= tLong) { st.sym = true; st.symCat = lt >= tTab ? 3 : 1; }
-    let txt = "";
-    if (lt >= tE1) txt += "😊";
-    if (lt >= tE2) txt += "🥰";
-    st.text = txt;
-    st._symTap = tapping(lt, tE1) ? 9 : tapping(lt, tE2) ? 11 : -1;
-    st._tabTap = tapping(lt, tTab);
-    const tab = { getBoundingClientRect: () => ($("symT").children[3] || $("kMode")).getBoundingClientRect() };
-    const e1 = { getBoundingClientRect: () => ($("symG").children[9] || $("kMode")).getBoundingClientRect() };
-    const e2 = { getBoundingClientRect: () => ($("symG").children[11] || $("kMode")).getBoundingClientRect() };
-    st._finger = [{ t: tDown, el: $("kMode"), hold: true }, { t: tLong, el: $("kMode") }, { t: tTab, el: tab }, { t: tE1, el: e1 }, { t: tE2, el: e2 }, { t: 2.8, el: e2 }];
-  }
-
-  const BR = ["×", "「」", "『』", "（）", "【】", "〈〉", "《》", "〔〕"];
-  function sBracket(lt) {
-    const tDown = .45, tLong = 1.0, tTap = 1.75;
-    const ya = K["gJa:ya"];
-    if (lt >= tDown && lt < tLong + .1) st.on.push(ya);
-    if (lt >= tLong && lt < tTap + .18) {
-      st.cands = BR;
-      if (tapping(lt, tTap)) st.candOn = 4;
-    }
-    if (lt >= tTap) { st.text = "【"; st.after = "】"; }
-    const chip = { getBoundingClientRect: () => ($("cands").children[4] || ya).getBoundingClientRect() };
-    st._finger = [{ t: tDown, el: ya, hold: true }, { t: tLong, el: ya }, { t: tTap, el: chip }, { t: 2.5, el: chip }];
-  }
-
-  // 英語：h（左フリック）→ a/A で H → i（上フリック）→ 空白 → 数字に切り替えて 10:00
-  function sEnglish(lt) {
-    const ev = [
-      { t: .45, el: $("kMode"), act: () => { st.mode = 1; } },
-      { t: .8,  el: K["gEn:ghi"], dir: 1, lab: "h", act: () => { st.text += "h"; } },
-      { t: 1.08, el: K["gEn:case"], act: () => { st.text = st.text.slice(0, -1) + "H"; } },
-      { t: 1.34, el: K["gEn:ghi"], dir: 2, lab: "i", act: () => { st.text += "i"; } },
-      { t: 1.6, el: $("kSpace"), act: () => { st.text += " "; } },
-      { t: 1.86, el: $("kMode"), act: () => { st.mode = 2; } },
-      { t: 2.1, el: K["gNum:1"], act: () => { st.text += "1"; } },
-      { t: 2.28, el: K["gNum:0"], act: () => { st.text += "0"; } },
-      { t: 2.46, el: K["gNum:7"], dir: 3, lab: ":", act: () => { st.text += ":"; } },
-      { t: 2.64, el: K["gNum:0"], act: () => { st.text += "0"; } },
-      { t: 2.82, el: K["gNum:0"], act: () => { st.text += "0"; } }
-    ];
-    for (const e of ev) {
-      if (lt >= e.t) e.act();
-      if (tapping(lt, e.t)) { st.on.push(e.el); if (e.lab) st.label[e.el === K["gEn:ghi"] ? "gEn:ghi" : "gNum:7"] = e.lab; }
-    }
-    st._finger = ev.map((e) => ({ t: e.t, el: e.el, dir: e.dir || 0 }));
-  }
-
-  function sVoice(lt) {
-    const tHold = .3, tMic = .85, tMain = 1.95, tDone = 2.45;
-    const raw = "えーと、明日の打ち合わせは10時からでお願いします";
-    const fixed = "明日の打ち合わせは10時からでお願いいたします。";
-    st.foot = 1;
-    if (lt >= tMic) { st.voice = true; $("tMic").classList.add("on"); }
-    if (lt >= tHold && lt < tMic + .1) st.on.push($("tMic"));
-    const vs = $("vs"), vb = $("vb");
-    const mic = '<svg><use href="#i-mic"/></svg>';
-    if (lt < tMain) {
-      const n = Math.floor(raw.length * prog(lt, .95, 1.75));
-      if (vs.dataset.k !== "l") { vs.innerHTML = mic + "聞いています…（AI添削モード）"; vs.dataset.k = "l"; }
-      setT(vb, raw.slice(0, n));
-      setT($("vSub"), "キャンセル"); setT($("vMain"), "添削して入力");
-    } else if (lt < tDone) {
-      const dots = ".".repeat(1 + Math.floor((lt - tMain) / .15) % 3);
-      const s = "AIで添削中" + dots;
-      if (vs.dataset.k !== s) { vs.textContent = s; vs.dataset.k = s; }
-      setT(vb, raw);
-      setT($("vMain"), "添削中…");
-    } else {
-      if (vs.dataset.k !== "d") { vs.textContent = "添削して入力しました"; vs.dataset.k = "d"; }
-      setT(vb, fixed);
-      setT($("vSub"), "元の文に戻す"); setT($("vMain"), "閉じる");
-      st.text = fixed;
-    }
-    $("vMain").classList.toggle("on", tapping(lt, tMain));
-    st._finger = [{ t: tHold, el: $("tMic"), hold: true }, { t: tMic, el: $("tMic") }, { t: tMain, el: $("vMain") }, { t: 2.75, el: $("vMain") }];
-  }
-
-  function sFloat(lt) {
-    const tIcon = .45, tGrab = 1.3, tDrop = 2.4;
-    if (lt >= tIcon) $("tFlt").classList.add("on");
-    if (tapping(lt, tIcon)) st.on.push($("tFlt"));
-    st.fl = ease(prog(lt, tIcon + .05, tIcon + .55));
-    const p = ease(prog(lt, tGrab + .12, tDrop - .1));
-    st.dx = -8 * p; st.dy = -104 * p;
-    st._finger = [{ t: tIcon, el: $("tFlt") }, { t: tGrab, el: $("gripL"), hold: true }, { t: tDrop, el: $("gripL") }];
-  }
-
-  function sTheme(lt) {
-    // ネイビー → ブラック → ライト → 背景画像＋透過
-    const seq = [[0, "navy"], [.75, "black"], [1.45, "light"], [2.15, "img"]];
-    let i = 0; while (i < seq.length - 1 && lt >= seq[i + 1][0]) i++;
-    const names = { navy: "ネイビー", black: "ブラック", light: "ライト", img: "背景画像＋透過" };
-    st.tpill = names[seq[i][1]];
-    const nxt = seq[i + 1], cur = seq[i][1];
-    const p = nxt ? ease(prog(lt, nxt[0] - .2, nxt[0])) : 0;
-    const base = (n) => (n === "img" ? "navy" : n);
-    if (cur === "img") {
-      const q = ease(prog(lt, 2.15, 2.6));
-      theme("navy", "navy", 0, 1 - .55 * q, 1 - .38 * q);
-      $("kbimg").style.opacity = q;
-    } else if (nxt && nxt[1] === "img") {
-      theme(cur, "navy", p);
-    } else {
-      theme(base(cur), nxt ? base(nxt[1]) : base(cur), p);
-    }
-    st.text = "";
-    st._finger = [];
-  }
-
-  // ---------- 描画（時刻 t から画面を作る） ----------
-  // 扇形：アプリと同じ計算（右手用・8°）。キーはまっすぐのまま、位置だけ段違いに
-  function fanTargets() {
-    const kbody = $("kbody"), sr = stage.getBoundingClientRect(), k = sr.width / 360;
-    const br = kbody.getBoundingClientRect();
-    const w = br.width / k, h = br.height / k;
-    const keys = [...kbody.querySelectorAll(".col > .k"), ...$("gJa").children];
-    const deg = 8, px = w, py = h * 1.6, span = w;
-    const P = [];
-    let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
-    for (const el of keys) {
-      const r = el.getBoundingClientRect();
-      const kw = r.width / k, kh = r.height / k;
-      const cx = (r.left - br.left) / k + kw / 2, cy = (r.top - br.top) / k + kh / 2;
-      const a = deg * Math.max(-1.4, Math.min(1.4, (cx - px) / span)), th = a * Math.PI / 180;
-      const vx = cx - px, vy = cy - py;
-      const nx = px + vx * Math.cos(th) - vy * Math.sin(th), ny = py + vx * Math.sin(th) + vy * Math.cos(th);
-      P.push({ el, cx, cy, nx, ny, a });
-      minX = Math.min(minX, nx - kw / 2); maxX = Math.max(maxX, nx + kw / 2);
-      minY = Math.min(minY, ny - kh / 2); maxY = Math.max(maxY, ny + kh / 2);
-    }
-    const sc = Math.max(.8, Math.min(1, h / (maxY - minY), (w + 6) / (maxX - minX)));
-    const mx = (minX + maxX) / 2, my = (minY + maxY) / 2;
-    return P.map((q) => ({ el: q.el, a: q.a, sc, tx: w / 2 + (q.nx - mx) * sc - q.cx, ty: h / 2 + (q.ny - my) * sc - q.cy }));
+  function keyCenter(k) {
+    const sr = $("stage").getBoundingClientRect(), r = k.getBoundingClientRect(), z = sr.width / 1080;
+    return [(r.left + r.width / 2 - sr.left) / z, (r.top + r.height / 2 - sr.top) / z];
   }
 
   function render(t) {
-    resetState();
-    st._finger = null;
-    // 扇形の位置を測る前に、キーをまっすぐに戻しておく
-    for (const k of document.querySelectorAll("#kbody .k")) k.style.transform = "";
-    st.fanRot = { ta: 0, ka: 0 };
-    const ft = fanTargets();
-    for (const q of ft) { if (q.el === K["gJa:ta"]) st.fanRot.ta = q.a; if (q.el === K["gJa:ka"]) st.fanRot.ka = q.a; }
-    st._ft = ft;
+    // ---- 一枚目 ----
+    const m1 = 1 - ease(prog(t, 3.6, 4.1));
+    set($("mark"), "opacity", String(m1));
+    const ml = $("mLine"); const L = 48;
+    ml.setAttribute("stroke-dasharray", L); ml.setAttribute("stroke-dashoffset", String(L * (1 - ease(prog(t, .4, 1.4)))));
+    document.querySelectorAll("#mark .st").forEach((e, i) => e.style.opacity = String(out(prog(t, 1.45 + i * .2, 1.75 + i * .2))));
+    set($("title"), "opacity", String(Math.min(out(prog(t, 2.3, 3.1)), m1)));
+    set($("title"), "transform", `translateY(${(1 - out(prog(t, 2.3, 3.1))) * 24}px)`);
+    set($("yomi"), "opacity", String(Math.min(out(prog(t, 2.8, 3.4)), m1)));
 
-    // オープニング
-    const op = $("open").style;
-    const oIn = (a, b) => out(prog(t, a, b));
-    $("oLogo").style.transform = `scale(${.6 + .4 * oIn(0, .55)})`;
-    $("oLogo").style.opacity = oIn(0, .4);
-    $("oName").style.opacity = oIn(.3, .75); $("oName").style.transform = `translateY(${12 * (1 - oIn(.3, .75))}px)`;
-    $("oTag1").style.opacity = oIn(.65, 1.1); $("oTag1").style.transform = `translateY(${10 * (1 - oIn(.65, 1.1))}px)`;
-    $("oTag2").style.opacity = oIn(.95, 1.35);
-    const oOut = ease(prog(t, 1.8, 2.2));
-    op.opacity = t < 2.2 ? 1 - oOut : 0;
-    op.transform = `translateY(${-30 * oOut}px)`;
+    // ---- 二枚目 ----
+    const cp = fade(t, 4.2, 4.4, 7.1, 7.6);
+    set($("copy"), "opacity", String(cp));
+    c1.forEach((e, i) => { const p = out(prog(t, 4.4 + i * .14, 4.9 + i * .14)); e.style.opacity = String(p); e.style.transform = `translateY(${(1 - p) * -14}px)`; });
+    c2.forEach((e, i) => { e.style.opacity = String(out(prog(t, 5.7 + i * .04, 6.1 + i * .04))); });
 
-    // スマホの出入り
-    const pIn = ease(prog(t, 1.85, 2.3)), pOut = ease(prog(t, 26.2, 26.55));
-    const ph = $("phone").style;
-    ph.opacity = t < 1.85 || t > 26.55 ? 0 : pIn * (1 - pOut);
-    ph.transform = `translateY(${40 * (1 - pIn) + 20 * pOut}px)`;
+    // ---- 使っているところ ----
+    const dm = fade(t, 7.6, 8.1, 23.5, 24.0);
+    set($("demo"), "opacity", String(dm));
+    let sc = SC.findIndex((s) => t >= s.s && t < s.e);
+    if (sc < 0) sc = t < SC[0].s ? 0 : SC.length - 1;
+    const S = SC[sc], lt = t - S.s;
+    // 場面の言葉
+    html($("capNo"), S.no);
+    html($("capText"), S.tx);
+    const cf = fade(t, S.s + .05, S.s + .55, S.e - .45, S.e - .05);
+    set($("cap"), "opacity", String(cf));
+    set($("cap"), "transform", `translateY(${(1 - out(prog(t, S.s + .05, S.s + .55))) * 18}px)`);
 
-    // 場面
-    let sc = null;
-    for (const s of SCENES) if (t >= s.s && t < s.e) sc = s;
-    if (sc) sc.f(t - sc.s);
+    // いったん全部ふつうに戻す
+    let field = "", cands = [], candSel = -1, phr = 0, voice = 0, fan = 0, pal = 0, rawField = false;
+    const lit = new Set(); let tapAt = null, tapP = 0; const flk = {};
+    ["tPhr", "tFan", "tMic", "tCol"].forEach((id) => $(id).classList.remove("on"));
+    const tap = (at, when, el) => { const d = lt - when; if (d >= 0 && d < .45) { tapAt = el; tapP = d / .45; } if (d >= 0 && d < .2) lit.add(el); };
 
-    // キャプション
-    const cap = $("cap").style;
-    if (sc) {
-      const lt = t - sc.s, d = sc.e - sc.s;
-      const a = out(prog(lt, 0, .35)) * (1 - prog(lt, d - .25, d));
-      setT($("capL"), sc.l); setT($("capJ"), sc.j);
-      cap.opacity = a; cap.transform = `translateY(${10 * (1 - out(prog(lt, 0, .35)))}px)`;
-      if (st._finger) finger(lt, st._finger);
-    } else cap.opacity = 0;
+    if (sc === 0) {
+      // 一 定型文
+      $("tPhr").classList.add("on");
+      phr = fade(lt, .25, .6, 2.55, 2.9);
+      tap(null, .15, $("tPhr"));
+      tap(null, 1.25, $("r1"));
+      if (lt >= 1.3) field = "本日はご来店いただき、ありがとうございます。";
+    } else if (sc === 1) {
+      // 二 ライブ変換
+      const t0 = .35, dt = .15, tEnt = 2.45;
+      let comp = "";
+      FL.forEach(([k, c, d], i) => {
+        const tt = t0 + i * dt;
+        if (lt >= tt) { if (c === "っ") comp = comp.slice(0, -1) + "っ"; else comp += c; }
+        tap(null, tt, K[k]);
+        if (d && lt >= tt && lt < tt + .2) flk[k] = c;
+      });
+      if (lt < tEnt) {
+        if (comp) { field = `<span class="comp">${live(comp)}</span>`; cands = [live(comp), comp]; candSel = 0; }
+      } else field = "お世話になっております";
+      tap(null, tEnt, K["確定"]);
+    } else if (sc === 2) {
+      // 三 扇形
+      $("tFan").classList.toggle("on", lt >= .3 && lt < 2.4);
+      tap(null, .25, $("tFan"));
+      tap(null, 2.3, $("tFan"));
+      fan = Math.min(ease(prog(lt, .35, 1.0)), 1 - ease(prog(lt, 2.4, 2.95)));
+      if (lt >= 1.45) field = lt >= 1.85 ? "<span class=\"comp\">月</span>" : "<span class=\"comp\">つ</span>";
+      if (lt >= 1.45 && lt < 2.4) { cands = lt >= 1.85 ? ["月", "付き", "つき"] : ["つ", "ツ"]; candSel = 0; }
+      if (lt >= 2.4) field = "月";
+      tap(null, 1.45, K["た"]); if (lt >= 1.45 && lt < 1.65) flk["た"] = "つ";
+      tap(null, 1.85, K["か"]); if (lt >= 1.85 && lt < 2.05) flk["か"] = "き";
+    } else if (sc === 3) {
+      // 四 声
+      $("tMic").classList.add("on");
+      tap(null, .15, $("tMic"));
+      voice = fade(lt, .2, .5, 2.55, 2.9);
+      const raw = "えーと、明日の打ち合わせは10時からでお願いします";
+      const fixed = "明日の打ち合わせは10時からでお願いいたします。";
+      if (lt < 1.75) { const n = Math.floor(raw.length * prog(lt, .5, 1.5)); if (n) { field = `<span class="raw">${raw.slice(0, n)}</span>`; } }
+      else field = fixed;
+      html($("vState"), lt < 1.5 ? "聞き取り中" : lt < 1.75 ? "敬語に整える" : "できあがり");
+      const pulse = (lt * 1.2) % 1;
+      set($("vRing2"), "transform", `scale(${1 + pulse * .45})`);
+      set($("vRing2"), "opacity", String(lt < 1.5 ? (1 - pulse) * .8 : 0));
+    } else {
+      // 五 色
+      $("tCol").classList.add("on");
+      tap(null, .2, $("tCol"));
+      pal = Math.min(ease(prog(lt, .35, 1.1)), 1 - ease(prog(lt, 2.15, 2.85)));
+      field = "藍と、鳥の子。";
+    }
 
-    // エンディング
-    const eIn = out(prog(t, 26.4, 26.9)), eOut = ease(prog(t, 28.6, 29));
-    $("end").style.opacity = t >= 26.4 ? eIn * (1 - eOut) : 0;
-    $("eCard").style.transform = `scale(${.94 + .06 * eIn})`;
-    tagEls.forEach((e, i) => { const q = out(prog(t, 26.7 + i * .08, 27.0 + i * .08)); e.style.opacity = q; e.style.transform = `translateY(${8 * (1 - q)}px)`; });
-
-    apply(t);
-  }
-
-  function apply(t) {
     // 入力欄
-    setT($("inTxt"), st.text); setT($("comp"), st.comp); setT($("inAfter"), st.after);
-    const any = st.text || st.comp || st.after;
-    $("ph").style.display = any ? "none" : "";
-    $("caret").style.opacity = any ? (Math.floor(t * 2.2) % 2 ? .25 : 1) : 0;
-
-    // 入力モード（あ / A / 1）・定型文・音声
-    $("gJa").style.display = st.mode === 0 ? "" : "none";
-    $("gEn").style.display = st.mode === 1 ? "" : "none";
-    $("gNum").style.display = st.mode === 2 ? "" : "none";
-    modeSpans.forEach((s, i) => s.classList.toggle("cur", i === st.mode));
-    $("phr").style.display = st.phr ? "block" : "none";
-    $("kbody").querySelector(".center").style.visibility = st.phr ? "hidden" : "visible";
-    $("phrIn").style.transform = `translateY(${-st.phrScroll}px)`;
-    $("voice").style.display = st.voice ? "flex" : "none";
-
-    // 扇形
-    if (st.fan > 0) for (const q of st._ft) {
-      const p = st.fan, s2 = 1 + (q.sc - 1) * p;
-      q.el.style.transform = `translate(${q.tx * p}px,${q.ty * p}px) scale(${s2})`;
-    }
-
-    // 記号・絵文字パネル
-    $("sym").style.display = st.sym ? "flex" : "none";
-    if (st.sym) {
-      $("gJa").style.display = "none";
-      const tk = "c" + st.symCat;
-      if ($("symT").dataset.k !== tk) {
-        $("symT").innerHTML = ""; $("symG").innerHTML = "";
-        SYM.forEach(([n], i) => { const e = document.createElement("div"); e.textContent = n; if (i === st.symCat) e.className = "cur"; $("symT").appendChild(e); });
-        SYM[st.symCat][1].forEach((c) => { const e = document.createElement("div"); e.textContent = c; $("symG").appendChild(e); });
-        $("symT").dataset.k = tk;
+    html($("ftA"), field);
+    set($("caret"), "opacity", String(Math.floor(t * 2) % 2 === 0 || field ? 1 : 0));
+    // 候補
+    html($("cand"), cands.map((c, i) => `<span${i === candSel ? ' class="sel"' : ""}>${c}</span>`).join(""));
+    // パネル
+    set($("phr"), "opacity", String(phr));
+    set($("voice"), "opacity", String(voice));
+    set(gridEl, "opacity", String(1 - Math.max(phr, voice)));
+    set($("cand"), "opacity", String(1 - Math.max(phr, voice)));
+    document.querySelectorAll("#phr .hl").forEach((e) => e.style.opacity = "0");
+    if (lit.has($("r1"))) $("r1").querySelector(".hl").style.opacity = ".18";
+    // キー
+    if (!base) measure();
+    const W = gridEl.offsetWidth, H = gridEl.offsetHeight, px = W, py = H * 1.6, deg = 11 * Math.PI / 180;
+    // 扇形：右下の下を中心に、親指から遠い列ほど大きく回す（キーそのものは傾けない）
+    // 回したあと、はみ出す分だけ中心に向かって全体を縮めて枠に収める
+    let pos = null, sfit = 1;
+    if (fan > 0) {
+      pos = keys.map((k, i) => {
+        const b = base[i], a = -deg * fan * (px - b.x) / W, dx = b.x - px, dy = b.y - py;
+        return { x: px + dx * Math.cos(a) - dy * Math.sin(a), y: py + dx * Math.sin(a) + dy * Math.cos(a), hw: k.offsetWidth / 2, hh: k.offsetHeight / 2 };
+      });
+      for (const q of pos) {
+        if (q.x < px) sfit = Math.min(sfit, (px - q.hw) / (px - q.x + q.hw));
       }
-      [...$("symG").children].forEach((e, i) => e.classList.toggle("on", i === st._symTap));
-      if ($("symT").children[3]) $("symT").children[3].classList.toggle("on", !!st._tabTap);
-    } else $("symT").dataset.k = "";
-
-    // 確定キー（変換中は「確定」）
-    const ent = $("kEnt");
-    if (st.ent) { if (ent.dataset.m !== "t") { ent.textContent = "確定"; ent.style.fontSize = "10px"; ent.dataset.m = "t"; } }
-    else if (ent.dataset.m !== "i") { ent.innerHTML = '<svg><use href="#i-enter"/></svg>'; ent.style.fontSize = ""; ent.dataset.m = "i"; }
-
-    // 押しているキー・フリック中の文字
-    for (const k of allKeys) { k.classList.remove("on"); if (k.dataset.lab && k.textContent !== k.dataset.lab) k.textContent = k.dataset.lab; }
-    for (const c of Object.values(PC)) c.classList.remove("on");
-    for (const e of st.on) e.classList && e.classList.add("on");
-    for (const [id, s] of Object.entries(st.label)) if (K[id]) K[id].textContent = s;
-
-    // 変換候補
-    const cd = $("cands");
-    const key = st.cands ? st.cands.join("|") + "#" + st.candOn : "";
-    if (cd.dataset.k !== key) {
-      cd.innerHTML = "";
-      (st.cands || []).forEach((s, i) => { const e = document.createElement("div"); e.className = "cand" + (i === st.candOn ? " on" : ""); e.textContent = s; cd.appendChild(e); });
-      cd.dataset.k = key;
     }
-    const showCands = !!st.cands;
-    for (const id of ["tPhr", "tFlt", "tTilt", "tHand", "tMic"]) $(id).style.display = showCands ? "none" : "";
+    // 縮めると中心（下）に寄って下にはみ出すので、はみ出した分だけ上へ戻す
+    let lift = 0;
+    if (pos) for (const q of pos) lift = Math.max(lift, py - (py - q.y) * sfit + q.hh * sfit - H);
+    keys.forEach((k, i) => {
+      k.querySelector(".hl").style.opacity = lit.has(k) ? ".22" : "0";
+      const f = k.querySelector(".fl"); const lab = Object.keys(K).find((n) => K[n] === k);
+      if (flk[lab]) { if (f.textContent !== flk[lab]) f.textContent = flk[lab]; f.style.opacity = "1"; } else f.style.opacity = "0";
+      if (pos) {
+        const b = base[i], q = pos[i];
+        const x = px - (px - q.x) * sfit, y = py - (py - q.y) * sfit;
+        k.style.transform = `translate(${x - b.x}px, ${y - b.y - lift}px) scale(${sfit})`;
+      } else k.style.transform = "";
+    });
+    // 配色（藍 ⇔ 鳥の子）
+    const mixc = (a, b, p) => { const A = a.match(/\w\w/g).map((h) => parseInt(h, 16)), B = b.match(/\w\w/g).map((h) => parseInt(h, 16)); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * p)).join(",")})`; };
+    const kb = $("kb").style;
+    kb.setProperty("--kbg", mixc("264348", "E2BE9F", pal));
+    kb.setProperty("--ktext", mixc("E2BE9F", "264348", pal));
+    kb.setProperty("--kon", mixc("264348", "E2BE9F", pal));
+    // タップの輪
+    const tp = $("tap");
+    if (tapAt) {
+      const [x, y] = keyCenter(tapAt);
+      tp.style.left = x + "px"; tp.style.top = y + "px";
+      tp.style.opacity = String((1 - tapP) * .9);
+      tp.style.transform = `scale(${.5 + tapP * .9})`;
+    } else tp.style.opacity = "0";
 
-    // フローティング
-    const fl = st.fl, kb = $("kb").style;
-    kb.left = kb.right = (14 * fl) + "px";
-    kb.bottom = (50 * fl) + "px";
-    kb.borderRadius = (14 * fl) + "px";
-    kb.boxShadow = fl ? `0 ${10 * fl}px ${24 * fl}px rgba(0,0,0,${.35 * fl})` : "none";
-    kb.transform = `translate(${st.dx}px,${st.dy}px)`;
-    $("grip").style.height = (17 * fl) + "px";
-    $("grip").style.opacity = fl;
-    $("inbar").style.bottom = (167 * (1 - fl)) + "px";
+    // ---- 終わり ----
+    const en = out(prog(t, 24.1, 24.6));
+    set($("end"), "opacity", String(en));
+    const el = $("eLine");
+    el.setAttribute("stroke-dasharray", L); el.setAttribute("stroke-dashoffset", String(L * (1 - ease(prog(t, 24.3, 25.1)))));
+    document.querySelectorAll("#end .est").forEach((e, i) => e.style.opacity = String(out(prog(t, 25.1 + i * .15, 25.35 + i * .15))));
+    set($("eTitle"), "opacity", String(out(prog(t, 25.6, 26.4))));
+    set($("eYomi"), "opacity", String(out(prog(t, 26.1, 26.7))));
+    set($("eRule"), "transform", `scaleX(${out(prog(t, 26.6, 27.2))})`);
+    set($("eTag"), "opacity", String(out(prog(t, 26.9, 27.5))));
+    set($("eSub"), "opacity", String(out(prog(t, 27.3, 27.9))));
 
-    // 着せかえの名前・注意書き
-    const tp = $("tpill");
-    setT(tp, st.tpill); tp.style.display = st.tpill ? "" : "none";
-    $("foot").style.opacity = st.foot;
-
-    // 進み具合
     $("barIn").style.width = (t / D * 100) + "%";
-    setT($("time"), `${t.toFixed(1)} / ${D.toFixed(1)} 秒`);
   }
 
-  // ---------- 再生・一時停止 ----------
-  let acc = 0, last = performance.now(), paused = false;
-  const reduce = !VIDEO && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (reduce) { paused = true; acc = 27.6; }
-  function frame(now) {
-    if (!paused) acc += (now - last) / 1000;
-    last = now;
-    render(((acc % D) + D) % D);
-    requestAnimationFrame(frame);
-  }
-  const bPlay = $("bPlay");
-  const paintBtn = () => { bPlay.textContent = paused ? "再生" : "一時停止"; };
-  paintBtn();
-  bPlay.addEventListener("click", () => { paused = !paused; last = performance.now(); paintBtn(); });
-  $("bRestart").addEventListener("click", () => { acc = 0; paused = false; last = performance.now(); paintBtn(); });
-
-  // ---------- 画面サイズに合わせる ----------
+  // ---------- 画面に合わせて縮める ----------
   function fit() {
-    if (VIDEO) return;
-    const w = Math.min(document.documentElement.clientWidth - 32, 560);
-    const h = window.innerHeight - 150;
-    const s = Math.max(.4, Math.min(w / 360, h / 640, 1.7));
-    stage.style.transform = `scale(${s})`;
-    wrap.style.width = 360 * s + "px"; wrap.style.height = 640 * s + "px";
-    $("under").style.width = 360 * s + "px";
+    const z = Math.min(window.innerWidth / 1080, (window.innerHeight - (window.VIDEO_MODE ? 0 : 60)) / 1920);
+    $("wrap").style.transform = `scale(${z})`;
+    $("wrap").style.margin = `${(1920 * z - 1920) / 2}px ${(1080 * z - 1080) / 2}px`;
   }
   window.addEventListener("resize", fit);
   fit();
-  render(reduce ? 27.6 : 0);
-  requestAnimationFrame(frame);
+
+  window.__render = (t) => render(t);
+  if (window.VIDEO_MODE) { $("ctl").style.display = "none"; render(0); return; }
+
+  // ---------- ページで見るとき：再生・一時停止 ----------
+  let playing = true, t0 = performance.now(), at = 0;
+  $("play").textContent = "一時停止";
+  $("play").onclick = () => {
+    playing = !playing;
+    if (playing) t0 = performance.now() - at * 1000;
+    $("play").textContent = playing ? "一時停止" : "再生";
+  };
+  function loop(now) {
+    if (playing) { at = ((now - t0) / 1000) % D; }
+    render(at);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
 })();
 </script>
+</body>
+</html>
