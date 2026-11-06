@@ -59,8 +59,8 @@ class MainActivity : Activity() {
     private val wrap = ViewGroup.LayoutParams.WRAP_CONTENT
 
     // ───────── 色：日本の伝統色（縁とそろえる）。名前は役割で、値は Iro にまとめてある ─────────
-    private val SUMI = Iro.AI                 // 背景：藍色
-    private val KINARI = Iro.TORINOKO         // 文字（主）：鳥の子色
+    private val SUMI = Iro.SUMI               // 背景：墨
+    private val KINARI = Iro.SHIRONERI        // 文字（主）：白練
     private val USUZUMI = Iro.KAMENOZOKI_70   // 文字（補足）：甕覗 70%
     private val LINE_C = Iro.RIKYUNEZUMI      // 罫線・枠線：利休鼠
     private val SHU = Iro.BENIHI              // 見出し・強調：紅緋
