@@ -88,6 +88,8 @@ class KookyKeyboardService : InputMethodService() {
             pr.getInt("height_pct", 100).coerceIn(70, 150),
             pr.getInt("onehand_pct", 78).coerceIn(55, 95),
             pr.getString("theme", "sumi"),
+            // 移ろいのときは、今の色（墨／白練）も比べる。日の出・日の入りを過ぎたら次に開いたときに切り替わる
+            Themes.of(pr.getString("theme", "sumi")).name,
             pr.getInt("accent", 0),
             pr.getInt("bg_trans", 0).coerceIn(0, 90),
             pr.getInt("key_trans", 0).coerceIn(0, 90),

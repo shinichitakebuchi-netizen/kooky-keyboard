@@ -59,10 +59,12 @@ class MainActivity : Activity() {
     private val wrap = ViewGroup.LayoutParams.WRAP_CONTENT
 
     // ───────── 色：日本の伝統色（縁とそろえる）。名前は役割で、値は Iro にまとめてある ─────────
-    private val SUMI = Iro.SUMI               // 背景：墨
-    private val KINARI = Iro.SHIRONERI        // 文字（主）：白練
-    private val USUZUMI = Iro.KAMENOZOKI_70   // 文字（補足）：甕覗 70%
-    private val LINE_C = Iro.RIKYUNEZUMI      // 罫線・枠線：利休鼠
+    // 墨（ダーク）と白練（ライト）。キーボードの配色が「白練」か「移ろい」の昼なら、設定画面も白練になる
+    private var SUMI = Iro.SUMI               // 背景：墨（ライトは白練）
+    private var KINARI = Iro.SHIRONERI        // 文字（主）：白練（ライトは墨）
+    private var USUZUMI = Iro.KAMENOZOKI_70   // 文字（補足）：甕覗 70%（ライトは利休鼠）
+    private var LINE_C = Iro.RIKYUNEZUMI      // 罫線・枠線：利休鼠（ライトは甕覗）
+    private var lightUi = false
     private val SHU = Iro.BENIHI              // 見出し・強調：紅緋
     private val ACTIVE = Iro.WAKATAKE         // 稼働中：若竹色
     // 部品の目印（色としては使わない。CARD＝入力欄、KEYC＝枠だけのボタン）
@@ -124,8 +126,7 @@ class MainActivity : Activity() {
         fontIdx = AppFonts.current(this)
         store = PhraseStore(this)
         cats = store.load()
-        window.statusBarColor = SUMI
-        window.navigationBarColor = SUMI
+        applyUiColors()
 
         scrollView = ScrollView(this).apply {
             setBackgroundColor(SUMI)
@@ -139,6 +140,32 @@ class MainActivity : Activity() {
         setContentView(scrollView)
         showPage("top")
         showBetaNotice()
+    }
+
+    // 設定画面の色：キーボードの配色が白練（移ろいの昼を含む）なら白練、それ以外は墨
+    private fun wantLight(): Boolean =
+        Themes.of(getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE).getString("theme", "sumi")).name == "kinari"
+
+    private fun applyUiColors() {
+        lightUi = wantLight()
+        if (lightUi) {
+            SUMI = Iro.SHIRONERI; KINARI = Iro.SUMI; USUZUMI = Iro.RIKYUNEZUMI; LINE_C = Iro.KAMENOZOKI
+        } else {
+            SUMI = Iro.SUMI; KINARI = Iro.SHIRONERI; USUZUMI = Iro.KAMENOZOKI_70; LINE_C = Iro.RIKYUNEZUMI
+        }
+        window.statusBarColor = SUMI
+        window.navigationBarColor = SUMI
+        @Suppress("DEPRECATION")
+        window.decorView.systemUiVisibility = if (lightUi)
+            View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0
+        if (::scrollView.isInitialized) scrollView.setBackgroundColor(SUMI)
+    }
+
+    // 墨⇔白練が変わっていたら、色を入れ替えて今のページを作り直す
+    private fun refreshUiColors() {
+        if (wantLight() == lightUi) return
+        applyUiColors()
+        showPage(page)
     }
 
     // ベータ版を初めて開いたときのお知らせ
@@ -836,6 +863,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        refreshUiColors()
         updateMicStatus()
         updateStatus()
     }
@@ -1525,51 +1553,73 @@ class MainActivity : Activity() {
         return box
     }
 
-    // 配色の選択（墨 / 白練 / ネイビー / ブラック / ライト）
-    // 丸い色見本の下に小さく名前。選択中は鳥の子色の細い輪で囲む
+    // 配色の選択（墨 / 白練 / 移ろい / ネイビー / ブラック / ライト）
+    // 丸い色見本の下に小さく名前。選択中は白練（ライトでは墨）の細い輪で囲む
+    // 移ろいの見本は、左半分が墨・右半分が白練
     private fun themePicker(): View {
         val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
+        val wrapBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val chips = ArrayList<Pair<View, Palette>>()
+        val opts = listOf(Themes.SUMI.name to Themes.SUMI.label, Themes.KINARI.name to Themes.KINARI.label, Themes.UTSUROI to "移ろい") +
+            Themes.ALL.filter { !it.wa }.map { it.name to it.label }
+        val chips = ArrayList<Pair<View, String>>()
         fun paint() {
-            val now = Themes.of(prefs.getString("theme", "sumi"))
-            for ((v, p) in chips) {
-                val on = p === now
+            val now = prefs.getString("theme", "sumi")
+            for ((v, name) in chips) {
+                val on = name == now
                 val ring = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
                     setColor(Color.TRANSPARENT)
                     if (on) setStroke((resources.displayMetrics.density * 1.5f).toInt().coerceAtLeast(1), KINARI)
                 }
-                val dot = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL
-                    setColor(p.bg)
-                    setStroke(dp(1), if (p.wa) LINE_C else p.accent)
+                val dot: Drawable = if (name == Themes.UTSUROI) {
+                    // 半分ずつ：墨と白練
+                    val left = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Iro.SUMI, Iro.SUMI, Iro.SHIRONERI, Iro.SHIRONERI)).apply {
+                        shape = GradientDrawable.OVAL
+                        setStroke(dp(1), LINE_C)
+                    }
+                    left
+                } else {
+                    val p = Themes.of(name)
+                    GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(p.bg)
+                        setStroke(dp(1), if (p.wa) LINE_C else p.accent)
+                    }
                 }
                 val ld = LayerDrawable(arrayOf(ring, dot))
                 ld.setLayerInset(1, dp(5), dp(5), dp(5), dp(5))
                 v.background = ld
             }
         }
-        Themes.ALL.forEach { p ->
+        opts.forEach { (name, label) ->
             val cell = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER_HORIZONTAL
                 setOnClickListener {
-                    prefs.edit().putString("theme", p.name).apply()
-                    paint()
+                    prefs.edit().putString("theme", name).apply()
+                    // 墨⇔白練が変われば設定画面も切り替える
+                    if (wantLight() != lightUi) refreshUiColors() else paint()
                 }
             }
             val sw = View(this)
             cell.addView(sw, LinearLayout.LayoutParams(dp(44), dp(44)))
-            cell.addView(text(p.label, 11f, USUZUMI).apply {
+            cell.addView(text(label, 11f, USUZUMI).apply {
                 gravity = Gravity.CENTER
+                maxLines = 1
                 setPadding(0, dp(4), 0, 0)
             })
-            chips.add(sw to p)
+            chips.add(sw to name)
             row.addView(cell, LinearLayout.LayoutParams(0, wrap, 1f))
         }
+        wrapBox.addView(row)
+        val (rise, set) = ThemeClock.sunTimes()
+        wrapBox.addView(text("移ろいは、日の出から日の入りまで白練、それ以外は墨になります。" +
+            "今日は ${ThemeClock.fmt(rise)} 〜 ${ThemeClock.fmt(set)}（前橋）。", 11f, USUZUMI).apply {
+            setPadding(0, dp(10), 0, 0)
+        })
         paint()
-        return row
+        return wrapBox
     }
 
     // サイズ調整スライダー（1%刻み）。細かい調整は − ＋ ボタンで1%ずつ

@@ -97,7 +97,12 @@ object Themes {
     )
     val ALL = listOf(SUMI, KINARI, NAVY, BLACK, LIGHT)
 
-    fun of(name: String?): Palette = ALL.firstOrNull { it.name == name } ?: SUMI
+    // 移ろい：日の出から日の入りまで白練、それ以外は墨
+    const val UTSUROI = "utsuroi"
+
+    fun of(name: String?): Palette =
+        if (name == UTSUROI) (if (ThemeClock.isDay()) KINARI else SUMI)
+        else ALL.firstOrNull { it.name == name } ?: SUMI
 }
 
 // 日本の伝統色（色名は「日本の内装材料辞典 › 日本の色 › 伝統色」、値は Wikipedia「Traditional colors of Japan」、鴇色のみ irocore.com）
