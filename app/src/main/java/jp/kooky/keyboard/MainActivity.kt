@@ -333,7 +333,7 @@ class MainActivity : Activity() {
             letterSpacing = 0.15f
             gravity = Gravity.CENTER
             setPadding(dp(16), dp(12), dp(16), dp(12))
-            setOnClickListener { showPage("update") }
+            setOnClickListener { openUpdatePage() }
         }, LinearLayout.LayoutParams(wrap, wrap).apply {
             topMargin = dp(56)
             gravity = Gravity.CENTER_HORIZONTAL
