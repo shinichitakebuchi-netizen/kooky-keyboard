@@ -9,9 +9,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500&family=Noto+Serif+JP:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 /* 綴（つづり）コンセプト動画：日本 × ミニマリスト
-   色は日本の伝統色だけ（藍色・鳥の子色・甕覗・利休鼠・紅緋）。1080×1920 の縦長で設計 */
+   色は日本の伝統色だけ（墨・白練・鳥の子色・藍色・甕覗・利休鼠・紅緋）。1080×1920 の縦長で設計 */
 :root {
-  --ai: #264348;          /* 藍色：背景 */
+  --ai: #313131;          /* 墨：背景（アプリの設定画面・アイコンと同じ） */
   --tori: #E2BE9F;        /* 鳥の子色：文字（主） */
   --kame: rgba(198,194,182,.7); /* 甕覗 70%：文字（補足） */
   --rikyu: #656255;       /* 利休鼠：罫線 */
@@ -46,9 +46,9 @@ body { display: flex; align-items: center; justify-content: center; overflow: hi
 #caret { display: inline-block; width: 3px; height: 50px; background: var(--benihi); vertical-align: -8px; margin-left: 4px; }
 #fieldLine { height: 2px; background: var(--rikyu); margin-top: 18px; }
 
-/* ---- キーボード（アプリの「藍」配色の見た目をそのまま写す：360dp幅の端末を3倍で） ---- */
+/* ---- キーボード（アプリの「墨」配色の見た目をそのまま写す：360dp幅の端末を3倍で） ---- */
 #kb { left: 0; top: 1068px; width: 1080px; height: 852px;
-  --kbg: #264348; --ktext: #E2BE9F; --ksub: rgba(198,194,182,.7); --kline: #656255; --kacc: #F35336; --kon: #264348;
+  --kbg: #313131; --ktext: #E2BE9F; --ksub: rgba(198,194,182,.7); --kline: #656255; --kacc: #F35336; --kon: #313131;
   background: var(--kbg); font-family: var(--gothic); }
 #tool { position: absolute; left: 9px; right: 9px; top: 9px; height: 114px; display: flex; }
 #tool .sp { flex: 1; }
@@ -266,7 +266,7 @@ body { display: flex; align-items: center; justify-content: center; overflow: hi
     { s: 14.5, e: 17.5, no: "三", tx: "親指に、<br>沿う。" },
     { s: 17.5, e: 20.5, no: "四", tx: "声を、<br>敬語に。" },
     { s: 20.5, e: 23.5, no: "五", tx: "写した文を、<br>いつでも。" },
-    { s: 23.5, e: 26.5, no: "六", tx: "藍と、<br>鳥の子。" },
+    { s: 23.5, e: 26.5, no: "六", tx: "墨と、<br>白練。" },
     { s: 26.5, e: 29.5, no: "七", tx: "差し色は、<br>伝統色から。" }
   ];
 
@@ -281,10 +281,10 @@ body { display: flex; align-items: center; justify-content: center; overflow: hi
   }
   const mixc = (a, b, p) => { const A = a.match(/\w\w/g).map((h) => parseInt(h, 16)), B = b.match(/\w\w/g).map((h) => parseInt(h, 16)); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * p)).join(",")})`; };
 
-  // WCAGのコントラスト比で、差し色の上の文字を藍色か鳥の子色か決める（アプリの withAccent と同じ）
+  // WCAGのコントラスト比で、差し色の上の文字を墨か白練か決める（アプリの withAccent と同じ）
   const lumi = (h) => h.match(/\w\w/g).map((x) => parseInt(x, 16) / 255).map((x) => x <= .03928 ? x / 12.92 : Math.pow((x + .055) / 1.055, 2.4)).reduce((a, v, i) => a + v * [.2126, .7152, .0722][i], 0);
   const cr = (a, b) => { const x = lumi(a), y = lumi(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
-  const onAccent = (h) => cr(h, "264348") >= cr(h, "E2BE9F") ? "#264348" : "#E2BE9F";
+  const onAccent = (h) => cr(h, "313131") >= cr(h, "F3F3F2") ? "#313131" : "#F3F3F2";
 
   function render(t) {
     // ---- 一枚目 ----
@@ -381,9 +381,9 @@ body { display: flex; align-items: center; justify-content: center; overflow: hi
       tap(1.3, $("cl1"));
       if (lt >= 1.3) st.field = "来週の打ち合わせ資料、共有フォルダに入れました";
     } else if (sc === 5) {
-      // 六 配色：藍 → 鳥の子 → 藍
+      // 六 配色：墨 → 白練 → 墨（移ろい：日の出は白練、日の入りは墨）
       st.pal = Math.min(ease(prog(lt, .35, 1.1)), 1 - ease(prog(lt, 2.15, 2.85)));
-      st.field = "藍と、鳥の子。";
+      st.field = "日の出は白練、日の入りは墨。";
     } else {
       // 七 差し色：紅緋 → 新橋色 → 鬱金色 → 桔梗色 → 紅緋（確定キー・モード・候補の色が変わる）
       const seq = [["紅緋", "F35336"], ["新橋色", "006C7F"], ["鬱金色", "E69B3A"], ["桔梗色", "5D3F6A"], ["紅緋", "F35336"]];
@@ -436,13 +436,13 @@ body { display: flex; align-items: center; justify-content: center; overflow: hi
         k.style.transform = `translate(${px - (px - q.x) * sfit - b.x}px, ${py - (py - q.y) * sfit - b.y - lift}px) scale(${sfit})`;
       } else k.style.transform = "";
     });
-    // 配色（藍 ⇔ 鳥の子）：アプリの「藍」「鳥の子」と同じ値
+    // 配色（墨 ⇔ 白練）：アプリの「墨」（墨の地・鳥の子色の文字）「白練」（白練の地・藍色の文字）と同じ値
     const kb = $("kb").style;
-    kb.setProperty("--kbg", mixc("264348", "E2BE9F", st.pal));
+    kb.setProperty("--kbg", mixc("313131", "F3F3F2", st.pal));
     kb.setProperty("--ktext", mixc("E2BE9F", "264348", st.pal));
     kb.setProperty("--ksub", st.pal > .5 ? "#656255" : "rgba(198,194,182,.7)");
-    kb.setProperty("--kon", mixc("264348", "E2BE9F", st.pal));
-    // 差し色と、その上の文字（藍色と鳥の子色のうち見やすいほう：アプリと同じ決め方）
+    kb.setProperty("--kon", "#313131");
+    // 差し色と、その上の文字（墨と白練のうち見やすいほう：アプリと同じ決め方）
     kb.setProperty("--kacc", "#" + st.acc);
     if (st.pal === 0) kb.setProperty("--kon", onAccent(st.acc));
     // タップの輪
