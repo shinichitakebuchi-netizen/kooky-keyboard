@@ -38,7 +38,7 @@ class CropView(
     }
     private val gridPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        color = (0x5A shl 24) or (Iro.SHIRONERI and 0x00FFFFFF)
+        color = (0x5A shl 24) or (Iro.TORINOKO and 0x00FFFFFF)
         strokeWidth = 1f * resources.displayMetrics.density
     }
     private val dimPath = Path()

@@ -65,19 +65,19 @@ fun contrast(a: Int, b: Int): Double {
 }
 
 object Themes {
-    // 墨（標準・ダーク）：墨の地に白練の文字。罫線は利休鼠、差し色は紅緋
+    // 墨（標準・ダーク）：庵と同じく、墨の地に鳥の子色の文字。罫線は利休鼠、差し色は紅緋
     // キーは塗らず、利休鼠の細い罫線だけで区切る
     val SUMI = Palette(
         "sumi", "墨",
         Iro.SUMI, Iro.SUMI, Iro.SUMI,
-        Iro.BENIHI, Iro.SHIRONERI, Iro.KAMENOZOKI_70, Iro.SUMI,
+        Iro.BENIHI, Iro.TORINOKO, Iro.KAMENOZOKI_70, Iro.SUMI,
         wa = true, line = Iro.RIKYUNEZUMI
     )
-    // 白練（ライト）：白練の地に墨の文字と紅緋
+    // 白練（ライト）：庵と同じく、白練の地に藍色の文字。補足・罫線は利休鼠
     val KINARI = Palette(
         "kinari", "白練",
         Iro.SHIRONERI, Iro.SHIRONERI, Iro.SHIRONERI,
-        Iro.BENIHI, Iro.SUMI, Iro.RIKYUNEZUMI, Iro.SUMI,
+        Iro.BENIHI, Iro.AI, Iro.RIKYUNEZUMI, Iro.SUMI,
         wa = true, line = Iro.RIKYUNEZUMI
     )
     val NAVY = Palette(

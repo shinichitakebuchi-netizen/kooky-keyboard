@@ -26,7 +26,7 @@ class FlickPreview(context: Context) : View(context), SharedPreferences.OnShared
     private val headPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Iro.KAMENOZOKI_70; style = Paint.Style.FILL }
     private val upHeadPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Iro.BENIHI; style = Paint.Style.FILL }
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Iro.SHIRONERI; textSize = 18f * d; textAlign = Paint.Align.CENTER; isFakeBoldText = false
+        color = Iro.TORINOKO; textSize = 18f * d; textAlign = Paint.Align.CENTER; isFakeBoldText = false
     }
     private val subPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Iro.KAMENOZOKI_70; textSize = 11f * d; textAlign = Paint.Align.CENTER

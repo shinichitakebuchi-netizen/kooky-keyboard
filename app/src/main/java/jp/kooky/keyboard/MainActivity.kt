@@ -59,13 +59,12 @@ class MainActivity : Activity() {
     private val wrap = ViewGroup.LayoutParams.WRAP_CONTENT
 
     // ───────── 色：日本の伝統色（縁とそろえる）。名前は役割で、値は Iro にまとめてある ─────────
-    // 墨（ダーク）と白練（ライト）。キーボードの配色が「白練」か「移ろい」の昼なら、設定画面も白練になる
-    private var SUMI = Iro.SUMI               // 背景：墨（ライトは白練）
-    private var KINARI = Iro.SHIRONERI        // 文字（主）：白練（ライトは墨）
-    private var USUZUMI = Iro.KAMENOZOKI_70   // 文字（補足）：甕覗 70%（ライトは利休鼠）
-    private var LINE_C = Iro.RIKYUNEZUMI      // 罫線・枠線：利休鼠（ライトは甕覗）
-    private var lightUi = false
-    private val SHU = Iro.BENIHI              // 見出し・強調：紅緋
+    // 庵と同じ：設定画面はいつも墨の地に鳥の子色の文字。見出し・強調は差し色（初期値は紅緋）
+    private val SUMI = Iro.SUMI               // 背景：墨
+    private val KINARI = Iro.TORINOKO         // 文字（主）：鳥の子色
+    private val USUZUMI = Iro.KAMENOZOKI_70   // 文字（補足）：甕覗 70%
+    private val LINE_C = Iro.RIKYUNEZUMI      // 罫線・枠線：利休鼠
+    private var SHU = Iro.BENIHI              // 見出し・強調：差し色（設定の「差し色」。初期値は紅緋）
     private val ACTIVE = Iro.WAKATAKE         // 稼働中：若竹色
     // 部品の目印（色としては使わない。CARD＝入力欄、KEYC＝枠だけのボタン）
     private val CARD = 0x01000001
@@ -134,7 +133,7 @@ class MainActivity : Activity() {
         }
         col = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(28), dp(24), dp(28), dp(48))
+            setPadding(dp(28), dp(36), dp(28), dp(32))
         }
         scrollView.addView(col)
         setContentView(scrollView)
@@ -142,31 +141,30 @@ class MainActivity : Activity() {
         showBetaNotice()
     }
 
-    // 設定画面の色：キーボードの配色が白練（移ろいの昼を含む）なら白練、それ以外は墨
-    private fun wantLight(): Boolean =
-        Themes.of(getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE).getString("theme", "sumi")).name == "kinari"
+    // 見出し・強調の色は、キーボードと同じ差し色（選んでいなければ紅緋）
+    private fun accentNow(): Int {
+        val a = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE).getInt("accent", 0)
+        return if (a == 0) Iro.BENIHI else a or (0xFF shl 24)
+    }
 
     private fun applyUiColors() {
-        lightUi = wantLight()
-        if (lightUi) {
-            SUMI = Iro.SHIRONERI; KINARI = Iro.SUMI; USUZUMI = Iro.RIKYUNEZUMI; LINE_C = Iro.KAMENOZOKI
-        } else {
-            SUMI = Iro.SUMI; KINARI = Iro.SHIRONERI; USUZUMI = Iro.KAMENOZOKI_70; LINE_C = Iro.RIKYUNEZUMI
-        }
+        SHU = accentNow()
         window.statusBarColor = SUMI
         window.navigationBarColor = SUMI
-        @Suppress("DEPRECATION")
-        window.decorView.systemUiVisibility = if (lightUi)
-            View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0
         if (::scrollView.isInitialized) scrollView.setBackgroundColor(SUMI)
     }
 
-    // 墨⇔白練が変わっていたら、色を入れ替えて今のページを作り直す
+    // 差し色が変わっていたら、見出しの色を入れ替えて今のページを作り直す（スクロール位置はそのまま）
     private fun refreshUiColors() {
-        if (wantLight() == lightUi) return
+        if (accentNow() == SHU) return
         applyUiColors()
+        val y = currentScroll()?.scrollY ?: 0
         showPage(page)
+        currentScroll()?.post { currentScroll()?.scrollTo(0, y) }
     }
+
+    private var lookScroll: ScrollView? = null
+    private fun currentScroll(): ScrollView? = if (page in LOOK_PAGES) lookScroll else scrollView
 
     // ベータ版を初めて開いたときのお知らせ
     private fun showBetaNotice() {
@@ -191,14 +189,50 @@ class MainActivity : Activity() {
     // ---------- ページの切り替え ----------
 
     // 各ページの名前（メニューの見出し・説明）
+    // 設定の階層（庵と同じく、一覧 → 各ページ）
     private val pages = listOf(
-        Triple("start", "はじめに", "キーボードの有効化・切り替え・試し打ち"),
-        Triple("phrase", "定型文", "定型文とカテゴリの編集・バックアップ"),
-        Triple("look", "見た目", "高さ・片手の幅・色・透過"),
-        Triple("voice", "音声入力・AI添削", "マイクの許可・Gemini APIキー"),
-        Triple("conv", "日本語変換", "単語登録・学習のリセット・辞書"),
-        Triple("update", "アップデート", "最新版のダウンロード")
+        "start" to "はじめに",
+        "phrase" to "定型文",
+        "tone" to "色合い",
+        "font" to "文字",
+        "bg" to "背景・透過",
+        "size" to "大きさ",
+        "fan" to "扇形",
+        "voice" to "音声入力・AI添削",
+        "conv" to "日本語変換",
+        "update" to "アップデート"
     )
+    // キーボードを出したまま調整するページ（下に透過確認用の背景が付く）
+    private val LOOK_PAGES = setOf("tone", "font", "bg", "size", "fan")
+
+    // 一覧の右下に出す、今の設定の要約
+    private fun summary(key: String): String {
+        val pr = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
+        return when (key) {
+            "start" -> when {
+                !isEnabled() -> "まだ有効になっていません"
+                !isSelected() -> "有効・切り替えると使えます"
+                else -> "使用中"
+            }
+            "phrase" -> "${cats.size}カテゴリ・${cats.sumOf { it.phrases.size }}件"
+            "tone" -> {
+                val t = pr.getString("theme", "sumi")
+                val name = if (t == Themes.UTSUROI) "移ろい" else Themes.of(t).label
+                val a = pr.getInt("accent", 0)
+                val an = if (a == 0) "紅緋" else Iro.PRESETS.firstOrNull { (it.second and 0xFFFFFF) == (a and 0xFFFFFF) }?.first ?: "#" + String.format("%06X", a and 0xFFFFFF)
+                "$name・差し色 $an"
+            }
+            "font" -> AppFonts.names[fontIdx]
+            "bg" -> listOf(if (BgImage.has(this)) "画像あり" else "画像なし",
+                "背景 ${pr.getInt("bg_trans", 0)}%", "キー ${pr.getInt("key_trans", 0)}%").joinToString("・")
+            "size" -> "高さ ${pr.getInt("height_pct", 100)}%・片手 ${pr.getInt("onehand_pct", 78)}%"
+            "fan" -> pr.getInt("tilt_deg", 0).let { if (it == 0) "なし" else "${it}°・" + if (pr.getString("tilt_dir", "right") == "left") "左手用" else "右手用" }
+            "voice" -> if (pr.getString("gemini_key", "").isNullOrEmpty()) "APIキー未設定" else "APIキー設定済み"
+            "conv" -> listOf(if (pr.getBoolean("live_conv", true)) "ライブ変換" else "ライブ変換なし",
+                "登録 ${Dict(this).userWords().size}語").joinToString("・")
+            else -> ""
+        }
+    }
 
     private fun showPage(p: String) {
         page = p
@@ -211,10 +245,10 @@ class MainActivity : Activity() {
         col.removeAllViews()
         scrollView.scrollTo(0, 0)
 
-        // 見た目ページだけ、キーボードを画面の上に重ねて出す（後ろの背景が透けて見えるように）
-        if (p == "look") {
+        // 見た目のページは、キーボードを画面の上に重ねて出す（後ろの背景が透けて見えるように）
+        if (p in LOOK_PAGES) {
             window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
-            val root = buildLookRoot()
+            val root = buildLookRoot(p)
             AppFonts.apply(root, this, fontIdx)
             setContentView(root)
             return
@@ -225,7 +259,7 @@ class MainActivity : Activity() {
         if (p == "top") {
             buildTop()
         } else {
-            pageHeader(pages.firstOrNull { it.first == p }?.second ?: "")
+            pageHeader(col, pages.firstOrNull { it.first == p }?.second ?: "")
             when (p) {
                 "start" -> buildStart()
                 "phrase" -> buildPhrase()
@@ -244,46 +278,55 @@ class MainActivity : Activity() {
         if (page != "top") showPage("top") else super.onBackPressed()
     }
 
-    // サブページの見出し：‹ 戻る ＋ 明朝の表題
-    private fun pageHeader(title: String) {
-        col.addView(text("‹　戻る", 13f, USUZUMI).apply {
+    // ページの上（庵と同じ）：‹　設定（一覧へ戻る）・閉じる　＋ 差し色の見出し
+    private fun pageHeader(c: LinearLayout, title: String) {
+        val nav = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        nav.addView(text("‹　設定", 14f, USUZUMI).apply {
             letterSpacing = 0.15f
-            setPadding(0, dp(4), dp(16), dp(18))
+            setPadding(0, dp(8), dp(16), dp(8))
             setOnClickListener { showPage("top") }
         })
-        col.addView(text(title, 26f, KINARI).apply {
-            typeface = MINCHO_BOLD
-            letterSpacing = 0.12f
-        })
+        nav.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
+        nav.addView(closeText().apply { setPadding(dp(16), dp(8), 0, dp(8)) })
+        c.addView(nav)
+        c.addView(section(title))
+    }
+
+    private fun closeText() = text("閉じる", 13f, USUZUMI).apply {
+        letterSpacing = 0.15f
+        setOnClickListener { finish() }
+    }
+
+    // 小見出し（庵の label と同じ）：鳥の子色 15sp
+    private fun label(t: String) = text(t, 15f, KINARI).apply {
+        layoutParams = LinearLayout.LayoutParams(wrap, wrap).apply {
+            topMargin = dp(18)
+            bottomMargin = dp(2)
+        }
     }
 
     private fun buildTop() {
-        // 表題：綴　つづり　　　　　● 状態
+        // 表題：綴　つづり　　　　　閉じる（庵と同じ）
         val head = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.BOTTOM
-            setPadding(0, dp(20), 0, 0)
         }
-        head.addView(text("綴", 44f, KINARI).apply { typeface = MINCHO_BOLD; includeFontPadding = false })
+        head.addView(text("綴", 44f, KINARI).apply { typeface = MINCHO_BOLD })
         head.addView(text("つづり", 13f, USUZUMI).apply {
-            letterSpacing = 0.25f
-            setPadding(dp(12), 0, 0, dp(8))
+            letterSpacing = 0.23f
+            setPadding(dp(12), 0, 0, dp(10))
         })
         head.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
-        val stateText = text("", 13f, USUZUMI).apply { setPadding(0, 0, dp(6), dp(8)) }
-        val dot = View(this)
-        head.addView(stateText)
-        head.addView(dot, LinearLayout.LayoutParams(dp(8), dp(8)).apply { bottomMargin = dp(13) })
-        topState = stateText to dot
+        head.addView(closeText().apply { setPadding(dp(12), dp(8), 0, dp(10)) })
         col.addView(head)
-
-        // 今の状態（有効・選択中か）
-        val st = note("")
-        statusText = st
-        col.addView(st, LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(10) })
+        col.addView(note("キーボードの見た目と入力を整えます。変えた内容はすぐにキーボードに反映されます。"),
+            LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(10) })
 
         col.addView(section("設定"))
-        for ((key, title, sub) in pages.filter { it.first != "update" }) col.addView(menuRow(title, sub) { showPage(key) })
+        for ((key, title) in pages.filter { it.first != "update" }) col.addView(menuRow(title, summary(key)) { showPage(key) })
 
         // 更新（縁・庵と同じく、いちばん下に小さく）
         col.addView(text("更新する　v${currentVersion()}" + if (BuildConfig.IS_BETA) "（ベータ版）" else "", 13f, USUZUMI).apply {
@@ -292,7 +335,7 @@ class MainActivity : Activity() {
             setPadding(dp(16), dp(12), dp(16), dp(12))
             setOnClickListener { showPage("update") }
         }, LinearLayout.LayoutParams(wrap, wrap).apply {
-            topMargin = dp(48)
+            topMargin = dp(56)
             gravity = Gravity.CENTER_HORIZONTAL
         })
     }
@@ -310,7 +353,7 @@ class MainActivity : Activity() {
         texts.addView(text(title, 15f, KINARI))
         texts.addView(text(sub, 12f, USUZUMI).apply { setPadding(0, dp(4), 0, 0) })
         row.addView(texts, LinearLayout.LayoutParams(0, wrap, 1f))
-        row.addView(text("›", 20f, LINE_C))
+        row.addView(text("›", 20f, USUZUMI))
         return row
     }
 
@@ -360,112 +403,114 @@ class MainActivity : Activity() {
         col.addView(addRow, blockParams())
         col.addView(button("カテゴリの並べ替え", KEYC) { sortCategories() }, blockParams())
 
-        col.addView(section("バックアップ"))
+        col.addView(label("バックアップ"))
         col.addView(text("機種変更や入れ直しのときに使ってね", 11f, USUZUMI))
         col.addView(button("書き出し（クリップボードにコピー）", KEYC) { exportData() }, blockParams())
         col.addView(button("読み込み（クリップボードから）", KEYC) { importData() }, blockParams())
         render()
     }
 
-    // ---------- 見た目 ----------
+    // ---------- 見た目（色合い・文字・背景・透過・大きさ・扇形） ----------
     // 上：試し打ち欄と調整項目（スクロール）／下：透過を確認するための背景（キーボードの後ろに来る）
-    private fun buildLookRoot(): View {
+    private fun buildLookRoot(sub: String): View {
         val frame = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(SUMI)
         }
 
         val sv = ScrollView(this)
+        lookScroll = sv
         val c = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(28), dp(24), dp(28), dp(24))
+            setPadding(dp(28), dp(36), dp(28), dp(32))
         }
         sv.addView(c)
         frame.addView(sv, LinearLayout.LayoutParams(match, 0, 1f))
 
-        c.addView(text("‹　戻る", 13f, USUZUMI).apply {
-            letterSpacing = 0.15f
-            setPadding(0, dp(4), dp(16), dp(18))
-            setOnClickListener { showPage("top") }
-        })
-        c.addView(text("見た目", 26f, KINARI).apply {
-            typeface = MINCHO_BOLD
-            letterSpacing = 0.12f
-        })
-        c.addView(text("試し打ち欄をタップしてキーボードを出したまま調整すると、その場で反映されるよ", 11f, USUZUMI)
-            .apply { setPadding(0, dp(8), 0, 0) })
+        pageHeader(c, pages.firstOrNull { it.first == sub }?.second ?: "")
+        c.addView(note("試し打ち欄をタップしてキーボードを出したまま調整すると、その場で反映されます。")
+            .apply { setPadding(0, dp(4), 0, 0) })
         c.addView(testField(), blockParams())
 
-        c.addView(section("背景画像"))
-        val bgStatus = text("", 13f, KINARI)
-        fun paintBg() {
-            bgStatus.text = when {
-                BgImage.isAnimated(this) && Build.VERSION.SDK_INT >= 28 -> "✅ GIF（動く画像）を設定中（背景の透過率で見え方を調整）"
-                BgImage.isAnimated(this) -> "✅ 画像を設定中（この端末ではGIFは止まった1コマ目で表示）"
-                BgImage.has(this) -> "✅ 画像を設定中（背景の透過率で見え方を調整）"
-                else -> "画像なし（写真・GIFが使えるよ）"
+        when (sub) {
+            "tone" -> {
+                c.addView(label("配色"))
+                c.addView(themePicker(), blockParams())
+                c.addView(label("差し色"))
+                c.addView(accentPicker(), blockParams())
+                c.addView(note("確定キー・選んでいる変換候補・オンのボタン・設定の見出しなどの色です。")
+                    .apply { setPadding(0, dp(10), 0, 0) })
+            }
+            "font" -> {
+                c.addView(fontPicker(), blockParams())
+                c.addView(note("Kaisei Tokumin・Yuji Syuku は SIL Open Font License 1.1 の無料フォントです。設定画面の文字が変わります（キーボードの文字は端末の標準のまま）。")
+                    .apply { setPadding(0, dp(10), 0, 0) })
+            }
+            "bg" -> {
+                c.addView(label("背景画像"))
+                val bgStatus = text("", 13f, USUZUMI)
+                fun paintBg() {
+                    bgStatus.text = when {
+                        BgImage.isAnimated(this) && Build.VERSION.SDK_INT >= 28 -> "GIF（動く画像）を設定中。背景の透過率で見え方を調整します。"
+                        BgImage.isAnimated(this) -> "画像を設定中（この端末ではGIFは止まった1コマ目で表示）。"
+                        BgImage.has(this) -> "画像を設定中。背景の透過率で見え方を調整します。"
+                        else -> "画像なし（写真・GIFが使えます）。"
+                    }
+                }
+                paintBg()
+                bgStatusRefresh = { paintBg() }
+                c.addView(bgStatus)
+                val bgRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                bgRow.addView(button("画像を選ぶ", SHU) { pickBgImage() },
+                    LinearLayout.LayoutParams(0, dp(46), 1f).apply { rightMargin = dp(4) })
+                bgRow.addView(button("画像を外す", KEYC) {
+                    BgImage.clear(this)
+                    paintBg()
+                    toast("背景画像を外したよ")
+                }, LinearLayout.LayoutParams(0, dp(46), 1f).apply { leftMargin = dp(4) })
+                c.addView(bgRow, blockParams())
+                c.addView(button("トリミング（表示する範囲を選ぶ）", KEYC) {
+                    if (BgImage.has(this)) openCrop() else toast("先に画像を選んでね")
+                }, blockParams())
+
+                c.addView(label("透過"))
+                c.addView(sizeSlider("背景の透過率", "bg_trans", 0, 0, 90), blockParams())
+                c.addView(sizeSlider("キーの透過率", "key_trans", 0, 0, 90), blockParams())
+
+                c.addView(label("ナビゲーションバー"))
+                c.addView(navPicker(), blockParams())
+                c.addView(note("画面下の ⌨ ∨ のバーです。「透明」はキーボードの背景（色・画像）をバーの裏まで伸ばします。端末によっては効かないことがあるので、そのときは「キーボードと同じ色」に戻してください。")
+                    .apply { setPadding(0, dp(10), 0, 0) })
+            }
+            "size" -> {
+                c.addView(sizeSlider("高さ", "height_pct", 100, 70, 150), blockParams())
+                c.addView(sizeSlider("片手モードの幅", "onehand_pct", 78, 55, 95), blockParams())
+                c.addView(sizeSlider("フローティングの幅", "float_pct", 88, 50, 100), blockParams())
+                c.addView(note("フローティングはキーボードのツールバーの「浮いた窓」アイコンでオン・オフ。上の二本線をドラッグで移動できます。")
+                    .apply { setPadding(0, dp(10), 0, 0) })
+            }
+            "fan" -> {
+                c.addView(degSlider(), blockParams())
+                c.addView(label("向き"))
+                c.addView(tiltDirPicker(), blockParams())
+                c.addView(note("右手用は左下がり、左手用は右下がりです。片手モードで左に寄せたときは、扇形もフリックも自動で左右反転します。")
+                    .apply { setPadding(0, dp(10), 0, 0) })
+                c.addView(sizeSlider("フリックの回転（扇形の傾きに対する割合）", "flick_pct", 100, 0, 200), blockParams())
+                c.addView(label("フリックの向きの見本"))
+                c.addView(FlickPreview(this).apply {
+                    clipToOutline = true
+                    outlineProvider = object : android.view.ViewOutlineProvider() {
+                        override fun getOutline(view: View, outline: android.graphics.Outline) {
+                            outline.setRoundRect(0, 0, view.width, view.height, dp(2).toFloat())
+                        }
+                    }
+                }, blockParams())
+                c.addView(note("紅緋が上フリック。100％で列の向きどおり、0％でまっすぐの上下左右、200％で列の向きの2倍回します。")
+                    .apply { setPadding(0, dp(10), 0, 0) })
+                c.addView(note("キーを扇形の段違いに並べて、親指で押しやすくします。キーボードのツールバーの扇形アイコンで、角度をつける／元に戻すを切り替えられます。段違いにした分だけキーが少し小さくなるので、気になるときは高さを上げてください。")
+                    .apply { setPadding(0, dp(8), 0, 0) })
             }
         }
-        paintBg()
-        bgStatusRefresh = { paintBg() }
-        c.addView(bgStatus)
-        val bgRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        bgRow.addView(button("画像を選ぶ", SHU) { pickBgImage() },
-            LinearLayout.LayoutParams(0, dp(46), 1f).apply { rightMargin = dp(4) })
-        bgRow.addView(button("画像を外す", KEYC) {
-            BgImage.clear(this)
-            paintBg()
-            toast("背景画像を外したよ")
-        }, LinearLayout.LayoutParams(0, dp(46), 1f).apply { leftMargin = dp(4) })
-        c.addView(bgRow, blockParams())
-        c.addView(button("トリミング（表示する範囲を選ぶ）", KEYC) {
-            if (BgImage.has(this)) openCrop() else toast("先に画像を選んでね")
-        }, blockParams())
-
-        c.addView(section("透過"))
-        c.addView(sizeSlider("背景の透過率", "bg_trans", 0, 0, 90), blockParams())
-        c.addView(sizeSlider("キーの透過率", "key_trans", 0, 0, 90), blockParams())
-
-        c.addView(section("色"))
-        c.addView(themePicker(), blockParams())
-
-        c.addView(section("差し色"))
-        c.addView(accentPicker(), blockParams())
-
-        c.addView(section("文字"))
-        c.addView(fontPicker(), blockParams())
-        c.addView(text("Kaisei Tokumin・Yuji Syuku は SIL Open Font License 1.1 の無料フォントです。", 11f, USUZUMI)
-            .apply { setPadding(0, dp(8), 0, 0) })
-
-        c.addView(section("ナビゲーションバー（画面下の ⌨ ∨ のバー）"))
-        c.addView(navPicker(), blockParams())
-        c.addView(text("「透明」はキーボードの背景（色・画像）をバーの裏まで伸ばすよ。端末によっては効かないことがあるので、そのときは「キーボードと同じ色」に戻してね", 11f, USUZUMI)
-            .apply { setPadding(0, dp(6), 0, 0) })
-
-        c.addView(section("サイズ"))
-        c.addView(sizeSlider("高さ", "height_pct", 100, 70, 150), blockParams())
-        c.addView(sizeSlider("片手モードの幅", "onehand_pct", 78, 55, 95), blockParams())
-        c.addView(sizeSlider("フローティングの幅", "float_pct", 88, 50, 100), blockParams())
-
-        c.addView(section("キーの角度"))
-        c.addView(degSlider(), blockParams())
-        c.addView(tiltDirPicker(), blockParams())
-        c.addView(sizeSlider("フリックの回転（扇形の傾きに対する割合）", "flick_pct", 100, 0, 200), blockParams())
-        c.addView(text("フリックの向きの見本（紅緋が上フリック）", 12f, USUZUMI).apply { setPadding(0, dp(10), 0, 0) })
-        c.addView(FlickPreview(this).apply {
-            clipToOutline = true
-            outlineProvider = object : android.view.ViewOutlineProvider() {
-                override fun getOutline(view: View, outline: android.graphics.Outline) {
-                    outline.setRoundRect(0, 0, view.width, view.height, dp(10).toFloat())
-                }
-            }
-        }, blockParams())
-        c.addView(text("100％で列の向きどおり、0％でまっすぐの上下左右、200％で列の向きの2倍回すよ。片手モードで左に寄せたときは、扇形もフリックも自動で左右反転するよ", 11f, USUZUMI)
-            .apply { setPadding(0, dp(6), 0, 0) })
-        c.addView(text("キーを扇形の段違いに並べて、親指で押しやすくするよ。キーボードのツールバーの扇形アイコンで、角度をつける／元に戻すを切り替えられる。段違いにした分だけキーが少し小さくなるので、気になるときは高さを上げてね", 11f, USUZUMI)
-            .apply { setPadding(0, dp(6), 0, 0) })
-        c.addView(text("フローティングはキーボードのツールバーの「浮いた窓」アイコンでオン・オフ。上の二本線をドラッグで移動できるよ", 11f, USUZUMI)
-            .apply { setPadding(0, dp(6), 0, 0) })
 
         // 確認用の背景：キーボードはこの上に重なる
         frame.addView(previewBackdrop(), LinearLayout.LayoutParams(match, dp(320)))
@@ -499,7 +544,7 @@ class MainActivity : Activity() {
         col.addView(text("キーボードのマイクをタップでふつうの音声入力、長押しでAI添削モード（話した内容をビジネス敬語に整えて入力）になるよ", 11f, USUZUMI)
             .apply { setPadding(0, dp(8), 0, 0) })
 
-        col.addView(section("マイク"))
+        col.addView(label("マイク"))
         val ms = text("", 13f, KINARI)
         micStatus = ms
         col.addView(ms)
@@ -507,7 +552,7 @@ class MainActivity : Activity() {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 10)
         }, blockParams())
 
-        col.addView(section("Gemini API"))
+        col.addView(label("Gemini API"))
         val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
         val keyEdit = EditText(this).apply {
             hint = "Gemini APIキー"
@@ -558,7 +603,7 @@ class MainActivity : Activity() {
 
     // ---------- 日本語変換 ----------
     private fun buildConv() {
-        col.addView(section("単語登録"))
+        col.addView(label("単語登録"))
         col.addView(text("店名・商品名・人の名前など、よく使う言葉を登録すると変換で優先して出るよ", 11f, USUZUMI))
         val ub = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         col.addView(ub, LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(8) })
@@ -566,25 +611,23 @@ class MainActivity : Activity() {
         col.addView(button("＋ 単語を登録", SHU) { editUserWord(null) }, blockParams())
         renderUserWords()
 
-        col.addView(section("入力のしかた"))
+        col.addView(label("入力のしかた"))
         val pr = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
         pr.registerOnSharedPreferenceChangeListener(liveSync)
-        col.addView(text("フリック入力", 13f, KINARI).apply { setPadding(0, dp(6), 0, 0) })
         col.addView(choice2("flick_s", if (pr.getBoolean("flick_on", true)) "on" else "off",
-            listOf("on" to "入", "off" to "切")), blockParams())
+            listOf("on" to "入", "off" to "切"), "フリック入力"), blockParams())
         col.addView(text("オフにすると、どの向きに払ってもタップと同じになるよ", 11f, USUZUMI).apply { setPadding(0, dp(4), 0, 0) })
-        col.addView(text("同じキーを続けてタップ", 13f, KINARI).apply { setPadding(0, dp(12), 0, 0) })
+        col.addView(text("同じキーを続けてタップ", 15f, KINARI).apply { setPadding(0, dp(14), 0, 0) })
         col.addView(choice2("toggle_s", if (pr.getBoolean("toggle_on", true)) "on" else "off",
             listOf("on" to "あ→い→う", "off" to "あああ")), blockParams())
         col.addView(text("「あ→い→う」は、同じキーを続けてタップすると文字が切り替わる（ケータイ打ち）。「あああ」は、タップするたびに同じ文字が増える。両方オフにすると あ段しか打てないので、片方は必ずオンになるよ", 11f, USUZUMI)
             .apply { setPadding(0, dp(4), 0, 0) })
 
-        col.addView(section("ライブ変換"))
         col.addView(liveToggle(), blockParams())
         col.addView(text("オンにすると、打っている途中から漢字に変換して表示するよ。確定キーでそのまま確定、変換キーで別の候補を選べる", 11f, USUZUMI)
             .apply { setPadding(0, dp(6), 0, 0) })
 
-        col.addView(section("学習"))
+        col.addView(label("学習"))
         col.addView(text("選んだ変換は覚えて、次から先に出すよ", 11f, USUZUMI))
         col.addView(button("変換の学習をリセット", KEYC) {
             confirm("覚えた変換をすべて消す？") {
@@ -593,7 +636,7 @@ class MainActivity : Activity() {
             }
         }, blockParams())
 
-        col.addView(section("辞書"))
+        col.addView(label("辞書"))
         col.addView(button("辞書のライセンス", KEYC) { showDictLicense() }, blockParams())
     }
 
@@ -822,7 +865,7 @@ class MainActivity : Activity() {
                     val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
                     if (prefs.getInt("bg_trans", 0) < 30) prefs.edit().putInt("bg_trans", 50).apply()
                     toast("表示する範囲を決めてね")
-                    if (page == "look") showPage("look") else bgStatusRefresh?.invoke()
+                    if (page in LOOK_PAGES) showPage(page) else bgStatusRefresh?.invoke()
                     openCrop()
                 } else {
                     toast("画像を読み込めなかったよ")
@@ -1263,33 +1306,36 @@ class MainActivity : Activity() {
     private fun blockParams() = LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(8) }
 
     // 2択ボタン（オレンジが選択中）
-    private fun choice2(key: String, def: String, opts: List<Pair<String, String>>): View {
+    private fun choice2(key: String, def: String, opts: List<Pair<String, String>>, title: String = ""): View {
         val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
-        // 入 / 切：スイッチの代わりに文字で。行全体をタップで切り替え
+        // 入／切（庵と同じ）：左に名前、右に「入　/　切」。行全体を押して切り替え、下に細い罫線
         if (opts.map { it.first } == listOf("on", "off")) {
-            val tv = TextView(this).apply {
-                textSize = 15f
-                gravity = Gravity.CENTER_VERTICAL or Gravity.END
-                minHeight = dp(46)
-                letterSpacing = 0.1f
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, dp(14), 0, dp(14))
                 background = hairlineBottom(true)
             }
+            row.addView(text(title, 15f, KINARI), LinearLayout.LayoutParams(0, wrap, 1f))
+            val on = text("入", 14f, SHU)
+            val off = text("切", 14f, KINARI)
+            row.addView(on)
+            row.addView(text("　/　", 12f, LINE_C))
+            row.addView(off)
             fun paint() {
-                val on = prefs.getString(key, def) == "on"
-                val sb = SpannableStringBuilder()
-                sb.append("入", ForegroundColorSpan(if (on) SHU else LINE_C), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                sb.append(" / ", ForegroundColorSpan(LINE_C), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                sb.append("切", ForegroundColorSpan(if (on) LINE_C else KINARI), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                tv.text = sb
+                val v = prefs.getString(key, def) == "on"
+                on.setTextColor(if (v) SHU else LINE_C)
+                off.setTextColor(if (v) LINE_C else KINARI)
             }
-            tv.setOnClickListener {
-                val on = prefs.getString(key, def) == "on"
-                prefs.edit().putString(key, if (on) "off" else "on").apply()
+            row.setOnClickListener {
+                val v = prefs.getString(key, def) == "on"
+                prefs.edit().putString(key, if (v) "off" else "on").apply()
                 paint()
             }
             paint()
-            return tv
+            return row
         }
+        // 選択肢（庵と同じ）：選択中は鳥の子色で塗り（文字は墨）、それ以外は利休鼠の細い枠。角丸2dp
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val btns = ArrayList<Pair<TextView, String>>()
         fun paint() {
@@ -1297,33 +1343,36 @@ class MainActivity : Activity() {
             for ((tv, k) in btns) {
                 val on = k == now
                 tv.setTextColor(if (on) SUMI else KINARI)
-                tv.background = press(if (on) SHU else KEYC, 0f)
+                tv.background = GradientDrawable().apply {
+                    cornerRadius = dp(2).toFloat()
+                    if (on) setColor(KINARI) else { setColor(Color.TRANSPARENT); setStroke(dp(1), LINE_C) }
+                }
             }
         }
         opts.forEachIndexed { i, (k, label) ->
             val tv = TextView(this).apply {
                 text = label
                 textSize = 14f
-                gravity = Gravity.CENTER
+                setPadding(dp(16), dp(8), dp(16), dp(8))
                 setOnClickListener {
                     prefs.edit().putString(key, k).apply()
                     paint()
                 }
             }
             btns.add(tv to k)
-            row.addView(tv, LinearLayout.LayoutParams(0, dp(46), 1f).apply { if (i > 0) leftMargin = dp(6) })
+            row.addView(tv, LinearLayout.LayoutParams(wrap, wrap).apply { if (i > 0) leftMargin = dp(10) })
         }
         paint()
         return row
     }
 
-    private fun tiltDirPicker() = choice2("tilt_dir", "right", listOf("right" to "右手用（左下がり）", "left" to "左手用（右下がり）"))
+    private fun tiltDirPicker() = choice2("tilt_dir", "right", listOf("right" to "右手用", "left" to "左手用"))
 
     private fun liveToggle(): View {
         val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
         // 保存は文字で行い、キーボード側は真偽値で読む
         val v = choice2("live_conv_s", if (prefs.getBoolean("live_conv", true)) "on" else "off",
-            listOf("on" to "入", "off" to "切"))
+            listOf("on" to "入", "off" to "切"), "ライブ変換")
         prefs.registerOnSharedPreferenceChangeListener(liveSync)
         return v
     }
@@ -1352,8 +1401,8 @@ class MainActivity : Activity() {
         val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = box(CARD, dp(10).toFloat())
-            setPadding(dp(12), dp(10), dp(12), dp(6))
+            background = hairlineBottom(true)
+            setPadding(0, dp(10), 0, dp(8))
         }
         val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         head.addView(text("角度", 14f, KINARI), LinearLayout.LayoutParams(0, wrap, 1f))
@@ -1384,36 +1433,8 @@ class MainActivity : Activity() {
     }
 
     // ナビゲーションバーの見え方（キーボードと同じ色 / 透明）
-    private fun navPicker(): View {
-        val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val opts = listOf("color" to "キーボードと同じ色", "clear" to "透明")
-        val btns = ArrayList<Pair<TextView, String>>()
-        fun paint() {
-            val now = prefs.getString("nav_mode", "color")
-            for ((tv, key) in btns) {
-                val on = key == now
-                tv.setTextColor(if (on) SUMI else KINARI)
-                tv.background = press(if (on) SHU else KEYC, dp(10).toFloat())
-            }
-        }
-        opts.forEachIndexed { i, (key, label) ->
-            val tv = TextView(this).apply {
-                text = label
-                textSize = 14f
-                gravity = Gravity.CENTER
-                typeface = Typeface.DEFAULT
-                setOnClickListener {
-                    prefs.edit().putString("nav_mode", key).apply()
-                    paint()
-                }
-            }
-            btns.add(tv to key)
-            row.addView(tv, LinearLayout.LayoutParams(0, dp(46), 1f).apply { if (i > 0) leftMargin = dp(6) })
-        }
-        paint()
-        return row
-    }
+    private fun navPicker(): View =
+        choice2("nav_mode", "color", listOf("color" to "キーボードと同じ色", "clear" to "透明"))
 
     // 文字の選択：3つを縦に並べ、各行に「綴　つづり」をそのフォントで表示、右に小さくフォント名
     // 選択中は鳥の子色の細い枠、ほかは利休鼠の細い枠。行全体をタップで切り替え、すぐ画面に反映
@@ -1451,7 +1472,7 @@ class MainActivity : Activity() {
             }, LinearLayout.LayoutParams(0, wrap, 1f))
             row.addView(text(name, 12f, USUZUMI))
             rows.add(row)
-            box.addView(row, LinearLayout.LayoutParams(match, wrap).apply { if (i > 0) topMargin = dp(8) })
+            box.addView(row, LinearLayout.LayoutParams(match, wrap).apply { if (i > 0) topMargin = dp(10) })
         }
         paint()
         return box
@@ -1463,13 +1484,12 @@ class MainActivity : Activity() {
         val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val cells = ArrayList<Triple<View, TextView, Int>>()
-        var std: TextView? = null
         lateinit var hexEdit: EditText
         fun cur() = prefs.getInt("accent", 0)
         fun paint() {
             val now = cur()
             for ((sw, name, c) in cells) {
-                val on = now != 0 && (now and 0xFFFFFF) == (c and 0xFFFFFF)
+                val on = (if (now == 0) Iro.BENIHI else now) and 0xFFFFFF == c and 0xFFFFFF
                 val ring = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
                     setColor(Color.TRANSPARENT)
@@ -1481,19 +1501,17 @@ class MainActivity : Activity() {
                     setStroke(maxOf(1, (resources.displayMetrics.density * 0.5f).toInt()), LINE_C)
                 }
                 val ld = LayerDrawable(arrayOf(ring, dot))
-                ld.setLayerInset(1, dp(4), dp(4), dp(4), dp(4))
+                ld.setLayerInset(1, dp(3), dp(3), dp(3), dp(3))
                 sw.background = ld
                 name.setTextColor(if (on) KINARI else USUZUMI)
-            }
-            std?.apply {
-                setTextColor(if (now == 0) SUMI else KINARI)
-                background = press(if (now == 0) SHU else KEYC, 0f)
             }
             if (now != 0 && !hexEdit.hasFocus()) hexEdit.setText(String.format("%06X", now and 0xFFFFFF))
         }
         fun pick(c: Int) {
             prefs.edit().putInt("accent", if (c == 0) 0 else c or (0xFF shl 24)).apply()
             paint()
+            // 設定の見出しも差し色なので、ページを塗り直す
+            refreshUiColors()
         }
         Iro.PRESETS.chunked(6).forEachIndexed { r, row ->
             val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -1501,20 +1519,21 @@ class MainActivity : Activity() {
                 val cell = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
                     gravity = Gravity.CENTER_HORIZONTAL
+                    setPadding(0, dp(8), 0, 0)
                     setOnClickListener { pick(c) }
                 }
                 val sw = View(this)
-                cell.addView(sw, LinearLayout.LayoutParams(dp(28), dp(28)))
-                val tv = text(name, 9f, USUZUMI).apply {
+                cell.addView(sw, LinearLayout.LayoutParams(dp(32), dp(32)))
+                val tv = text(name, 10f, USUZUMI).apply {
                     gravity = Gravity.CENTER
                     maxLines = 1
-                    setPadding(0, dp(4), 0, 0)
+                    setPadding(0, dp(3), 0, 0)
                 }
                 cell.addView(tv)
                 cells.add(Triple(sw, tv, c))
                 line.addView(cell, LinearLayout.LayoutParams(0, wrap, 1f))
             }
-            box.addView(line, LinearLayout.LayoutParams(match, wrap).apply { if (r > 0) topMargin = dp(10) })
+            box.addView(line, LinearLayout.LayoutParams(match, wrap))
         }
         // #色コード ＋ 適用
         val hexRow = LinearLayout(this).apply {
@@ -1540,95 +1559,38 @@ class MainActivity : Activity() {
             else Toast.makeText(this, "6桁の色コード（例：F35336）を入れてね", Toast.LENGTH_SHORT).show()
         }.apply { minWidth = dp(72) }, LinearLayout.LayoutParams(wrap, dp(40)).apply { leftMargin = dp(14) })
         box.addView(hexRow, LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(14) })
-        // 配色の標準に戻す
-        val s = TextView(this).apply {
-            text = "配色の標準"
-            textSize = 14f
-            gravity = Gravity.CENTER
-            setOnClickListener { pick(0) }
-        }
-        std = s
-        box.addView(s, LinearLayout.LayoutParams(match, dp(42)).apply { topMargin = dp(12) })
         paint()
         return box
     }
 
-    // 配色の選択（墨 / 白練 / 移ろい / ネイビー / ブラック / ライト）
-    // 丸い色見本の下に小さく名前。選択中は白練（ライトでは墨）の細い輪で囲む
-    // 移ろいの見本は、左半分が墨・右半分が白練
+    // 配色（庵と同じ）：墨 / 白練 / 移ろい を文字の選択肢で。ほかの配色はその下に
     private fun themePicker(): View {
-        val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
-        val wrapBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val opts = listOf(Themes.SUMI.name to Themes.SUMI.label, Themes.KINARI.name to Themes.KINARI.label, Themes.UTSUROI to "移ろい") +
-            Themes.ALL.filter { !it.wa }.map { it.name to it.label }
-        val chips = ArrayList<Pair<View, String>>()
-        fun paint() {
-            val now = prefs.getString("theme", "sumi")
-            for ((v, name) in chips) {
-                val on = name == now
-                val ring = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL
-                    setColor(Color.TRANSPARENT)
-                    if (on) setStroke((resources.displayMetrics.density * 1.5f).toInt().coerceAtLeast(1), KINARI)
-                }
-                val dot: Drawable = if (name == Themes.UTSUROI) {
-                    // 半分ずつ：墨と白練
-                    val left = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Iro.SUMI, Iro.SUMI, Iro.SHIRONERI, Iro.SHIRONERI)).apply {
-                        shape = GradientDrawable.OVAL
-                        setStroke(dp(1), LINE_C)
-                    }
-                    left
-                } else {
-                    val p = Themes.of(name)
-                    GradientDrawable().apply {
-                        shape = GradientDrawable.OVAL
-                        setColor(p.bg)
-                        setStroke(dp(1), if (p.wa) LINE_C else p.accent)
-                    }
-                }
-                val ld = LayerDrawable(arrayOf(ring, dot))
-                ld.setLayerInset(1, dp(5), dp(5), dp(5), dp(5))
-                v.background = ld
-            }
-        }
-        opts.forEach { (name, label) ->
-            val cell = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER_HORIZONTAL
-                setOnClickListener {
-                    prefs.edit().putString("theme", name).apply()
-                    // 墨⇔白練が変われば設定画面も切り替える
-                    if (wantLight() != lightUi) refreshUiColors() else paint()
-                }
-            }
-            val sw = View(this)
-            cell.addView(sw, LinearLayout.LayoutParams(dp(44), dp(44)))
-            cell.addView(text(label, 11f, USUZUMI).apply {
-                gravity = Gravity.CENTER
-                maxLines = 1
-                setPadding(0, dp(4), 0, 0)
-            })
-            chips.add(sw to name)
-            row.addView(cell, LinearLayout.LayoutParams(0, wrap, 1f))
-        }
-        wrapBox.addView(row)
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        box.addView(choice2("theme", "sumi", listOf("sumi" to "墨", "kinari" to "白練", Themes.UTSUROI to "移ろい")))
         val (rise, set) = ThemeClock.sunTimes()
-        wrapBox.addView(text("移ろいは、日の出から日の入りまで白練、それ以外は墨になります。" +
-            "今日は ${ThemeClock.fmt(rise)} 〜 ${ThemeClock.fmt(set)}（前橋）。", 11f, USUZUMI).apply {
-            setPadding(0, dp(10), 0, 0)
-        })
-        paint()
-        return wrapBox
+        box.addView(note("移ろいは、日の出から日の入りまで白練、それ以外は墨になります。" +
+            "今日は ${ThemeClock.fmt(rise)} 〜 ${ThemeClock.fmt(set)}（前橋）。").apply { setPadding(0, dp(10), 0, 0) })
+        box.addView(text("ほかの配色", 12f, USUZUMI).apply { setPadding(0, dp(14), 0, dp(8)) })
+        box.addView(choice2("theme", "sumi", Themes.ALL.filter { !it.wa }.map { it.name to it.label }))
+        // 片方を選んだら、もう片方の表示も直す
+        val pr = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
+        val l = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, k ->
+            if (k == "theme") { val y = lookScroll?.scrollY ?: 0; showPage(page); lookScroll?.post { lookScroll?.scrollTo(0, y) } }
+        }
+        themeListener?.let { pr.unregisterOnSharedPreferenceChangeListener(it) }
+        themeListener = l
+        pr.registerOnSharedPreferenceChangeListener(l)
+        return box
     }
+    private var themeListener: android.content.SharedPreferences.OnSharedPreferenceChangeListener? = null
 
     // サイズ調整スライダー（1%刻み）。細かい調整は − ＋ ボタンで1%ずつ
     private fun sizeSlider(label: String, key: String, def: Int, lo: Int, hi: Int): View {
         val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = box(CARD, dp(10).toFloat())
-            setPadding(dp(12), dp(10), dp(12), dp(6))
+            background = hairlineBottom(true)
+            setPadding(0, dp(10), 0, dp(8))
         }
         val head = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
