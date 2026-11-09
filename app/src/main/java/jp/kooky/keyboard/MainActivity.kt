@@ -59,11 +59,14 @@ class MainActivity : Activity() {
     private val wrap = ViewGroup.LayoutParams.WRAP_CONTENT
 
     // ───────── 色：日本の伝統色（縁とそろえる）。名前は役割で、値は Iro にまとめてある ─────────
-    // 庵と同じ：設定画面はいつも墨の地に鳥の子色の文字。見出し・強調は差し色（初期値は紅緋）
-    private val SUMI = Iro.SUMI               // 背景：墨
-    private val KINARI = Iro.TORINOKO         // 文字（主）：鳥の子色
-    private val USUZUMI = Iro.KAMENOZOKI_70   // 文字（補足）：甕覗 70%
-    private val LINE_C = Iro.RIKYUNEZUMI      // 罫線・枠線：利休鼠
+    // 庵と同じ色。キーボードの配色に合わせて、墨（ダーク）と白練（ライト）を切り替える
+    //   ダーク：墨の地・鳥の子色の文字・甕覗70%の補足 ／ ライト：白練の地・藍色の文字・利休鼠の補足。罫線はどちらも利休鼠
+    //   配色が「白練」のとき、または「移ろい」で日の出〜日の入りのときにライト。見出し・強調は差し色（初期値は紅緋）
+    private var SUMI = Iro.SUMI               // 背景
+    private var KINARI = Iro.TORINOKO         // 文字（主）
+    private var USUZUMI = Iro.KAMENOZOKI_70   // 文字（補足）
+    private val LINE_C = Iro.RIKYUNEZUMI      // 罫線・枠線
+    private var lightUi = false
     private var SHU = Iro.BENIHI              // 見出し・強調：差し色（設定の「差し色」。初期値は紅緋）
     private val ACTIVE = Iro.WAKATAKE         // 稼働中：若竹色
     // 部品の目印（色としては使わない。CARD＝入力欄、KEYC＝枠だけのボタン）
@@ -147,16 +150,28 @@ class MainActivity : Activity() {
         return if (a == 0) Iro.BENIHI else a or (0xFF shl 24)
     }
 
+    // ライトにするか：配色が白練、または移ろいの昼
+    private fun wantLight(): Boolean =
+        Themes.of(getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE).getString("theme", "sumi")).name == "kinari"
+
     private fun applyUiColors() {
         SHU = accentNow()
+        lightUi = wantLight()
+        SUMI = if (lightUi) Iro.SHIRONERI else Iro.SUMI
+        KINARI = if (lightUi) Iro.AI else Iro.TORINOKO
+        USUZUMI = if (lightUi) Iro.RIKYUNEZUMI else Iro.KAMENOZOKI_70
         window.statusBarColor = SUMI
         window.navigationBarColor = SUMI
+        // ライトのときはステータスバー・ナビゲーションバーのアイコンを暗い色に
+        @Suppress("DEPRECATION")
+        window.decorView.systemUiVisibility = if (lightUi)
+            View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0
         if (::scrollView.isInitialized) scrollView.setBackgroundColor(SUMI)
     }
 
-    // 差し色が変わっていたら、見出しの色を入れ替えて今のページを作り直す（スクロール位置はそのまま）
+    // 差し色や墨⇔白練が変わっていたら、色を入れ替えて今のページを作り直す（スクロール位置はそのまま）
     private fun refreshUiColors() {
-        if (accentNow() == SHU) return
+        if (accentNow() == SHU && wantLight() == lightUi) return
         applyUiColors()
         val y = currentScroll()?.scrollY ?: 0
         showPage(page)
@@ -1575,7 +1590,11 @@ class MainActivity : Activity() {
         // 片方を選んだら、もう片方の表示も直す
         val pr = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
         val l = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, k ->
-            if (k == "theme") { val y = lookScroll?.scrollY ?: 0; showPage(page); lookScroll?.post { lookScroll?.scrollTo(0, y) } }
+            if (k == "theme") {
+                // 墨⇔白練が変われば設定画面の色も切り替える
+                if (wantLight() != lightUi) { refreshUiColors(); return@OnSharedPreferenceChangeListener }
+                val y = lookScroll?.scrollY ?: 0; showPage(page); lookScroll?.post { lookScroll?.scrollTo(0, y) }
+            }
         }
         themeListener?.let { pr.unregisterOnSharedPreferenceChangeListener(it) }
         themeListener = l

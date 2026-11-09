@@ -56,7 +56,7 @@ class FlickPreview(context: Context) : View(context), SharedPreferences.OnShared
 
     override fun onSharedPreferenceChanged(p: SharedPreferences?, key: String?) {
         if (key == AppFonts.PREF_KEY) applyFont()
-        if (key == "tilt_deg" || key == "tilt_dir" || key == "flick_pct" || key == "tilt_on" || key == AppFonts.PREF_KEY) invalidate()
+        if (key == "tilt_deg" || key == "tilt_dir" || key == "flick_pct" || key == "tilt_on" || key == AppFonts.PREF_KEY || key == "theme") invalidate()
     }
 
     // 設定の「文字」で選んだフォントを、描く文字に当てる（変わったときだけ読み直す）
@@ -68,7 +68,14 @@ class FlickPreview(context: Context) : View(context), SharedPreferences.OnShared
     }
 
     override fun onDraw(canvas: Canvas) {
-        canvas.drawColor(Iro.SUMI)
+        // 設定画面と同じく、墨（ダーク）／白練（ライト）
+        val light = Themes.of(prefs.getString("theme", "sumi")).name == "kinari"
+        textPaint.color = if (light) Iro.AI else Iro.TORINOKO
+        val sub = if (light) Iro.RIKYUNEZUMI else Iro.KAMENOZOKI_70
+        subPaint.color = sub
+        linePaint.color = sub
+        headPaint.color = sub
+        canvas.drawColor(if (light) Iro.SHIRONERI else Iro.SUMI)
         val deg = prefs.getInt("tilt_deg", 0).coerceIn(0, 12)
         val on = prefs.getBoolean("tilt_on", true) && deg > 0
         val left = prefs.getString("tilt_dir", "right") == "left"
