@@ -905,7 +905,8 @@ class KookyKeyboardService : InputMethodService() {
 
     // ---------- 傾きで片手モードに自動で寄せる ----------
     // 右側が下がる（右に傾く）と右寄せ、左側が下がると左寄せ（設定で反対にもできる）
-    // 同じ向きに約1秒傾いたままのときだけ動かす。水平に戻ると全幅に戻す。打っている途中（直前0.8秒）は動かさない
+    // 同じ向きに約1秒傾いたままのときだけ動かす。左右のどちらかに寄せるだけで、全幅（真ん中）には自動で戻さない
+    // 打っている途中（直前0.8秒）は動かさない
     private var autoPaused = false
     private var lastEditAt = 0L
     private var pendingHand = -1
@@ -925,11 +926,10 @@ class KookyKeyboardService : InputMethodService() {
         if (resources.configuration.orientation != android.content.res.Configuration.ORIENTATION_PORTRAIT) return
         val deg = prefs().getInt("auto_hand_deg", 8).coerceIn(3, 20).toFloat()
         val reverse = prefs().getString("auto_hand_dir", "same") == "reverse"
-        // 今の状態から、行きたい状態を決める（行きと戻りで角度に差をつけて、境目でガタガタしないように）
+        // 行きたい側（角度より傾いていなければ今のまま）
         val want = when {
             roll >= deg -> if (reverse) 2 else 1
             roll <= -deg -> if (reverse) 1 else 2
-            kotlin.math.abs(roll) < deg * 0.5f -> 0
             else -> oneHand
         }
         val now = SystemClock.uptimeMillis()
