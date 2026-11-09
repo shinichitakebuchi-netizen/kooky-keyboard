@@ -181,6 +181,29 @@ class MainActivity : Activity() {
     private var lookScroll: ScrollView? = null
     private fun currentScroll(): ScrollView? = if (page in LOOK_PAGES) lookScroll else scrollView
 
+    // 大きさのページで、今の傾きを表示する（角度を決める目安に）
+    private var rollSensor: HandSensor? = null
+    private var rollText: TextView? = null
+    private fun startRollReadout(tv: TextView) {
+        stopRollReadout()
+        rollText = tv
+        val hs = HandSensor(this) { r ->
+            val a = kotlin.math.abs(r).toInt()
+            tv.text = when {
+                a < 1 -> "今の傾き：ほぼ水平"
+                r > 0 -> "今の傾き：右に ${a}°"
+                else -> "今の傾き：左に ${a}°"
+            }
+        }
+        if (!hs.available) { tv.text = "この端末では傾きを読めません"; return }
+        rollSensor = hs
+        hs.start()
+    }
+    private fun stopRollReadout() {
+        rollSensor?.stop()
+        rollSensor = null
+    }
+
     // ベータ版を初めて開いたときのお知らせ
     private fun showBetaNotice() {
         if (!BuildConfig.IS_BETA) return
@@ -251,6 +274,7 @@ class MainActivity : Activity() {
 
     private fun showPage(p: String) {
         page = p
+        stopRollReadout()
         statusText = null
         topState = null
         tabsRow = null
@@ -503,6 +527,18 @@ class MainActivity : Activity() {
                 c.addView(sizeSlider("フローティングの幅", "float_pct", 88, 50, 100), blockParams())
                 c.addView(note("フローティングはキーボードのツールバーの「浮いた窓」アイコンでオン・オフ。上の二本線をドラッグで移動できます。")
                     .apply { setPadding(0, dp(10), 0, 0) })
+
+                // 傾きで片手モードに自動で寄せる
+                c.addView(label("傾きで片手モード"))
+                c.addView(choice2("auto_hand_s", "off", listOf("on" to "入", "off" to "切"), "傾きで自動で寄せる"), blockParams())
+                c.addView(text("寄せる向き", 14f, KINARI).apply { setPadding(0, dp(14), 0, dp(8)) })
+                c.addView(choice2("auto_hand_dir", "same", listOf("same" to "傾いた側に寄せる", "reverse" to "反対側に寄せる")))
+                c.addView(sizeSlider("傾きの角度", "auto_hand_deg", 8, 3, 20, "°"), blockParams())
+                val rollText = text("", 13f, SHU).apply { setPadding(0, dp(10), 0, 0) }
+                c.addView(rollText)
+                startRollReadout(rollText)
+                c.addView(note("スマホを左右どちらかに、この角度より傾けたまま約1秒たつと、キーボードがその側に寄ります。水平に戻すと全幅に戻ります。打っている途中は動きません。キーボードの片手ボタンで切り替えたときは、キーボードを閉じるまで自動はお休みします。寝転んでいるときなどは、傾きがうまく読めないことがあります。")
+                    .apply { setPadding(0, dp(8), 0, 0) })
             }
             "fan" -> {
                 c.addView(degSlider(), blockParams())
@@ -919,8 +955,14 @@ class MainActivity : Activity() {
         }.start()
     }
 
+    override fun onPause() {
+        stopRollReadout()
+        super.onPause()
+    }
+
     override fun onResume() {
         super.onResume()
+        if (page == "size") rollText?.let { startRollReadout(it) }
         refreshUiColors()
         updateMicStatus()
         updateStatus()
@@ -1604,7 +1646,7 @@ class MainActivity : Activity() {
     private var themeListener: android.content.SharedPreferences.OnSharedPreferenceChangeListener? = null
 
     // サイズ調整スライダー（1%刻み）。細かい調整は − ＋ ボタンで1%ずつ
-    private fun sizeSlider(label: String, key: String, def: Int, lo: Int, hi: Int): View {
+    private fun sizeSlider(label: String, key: String, def: Int, lo: Int, hi: Int, unit: String = "%"): View {
         val prefs = getSharedPreferences("kooky_keyboard", Context.MODE_PRIVATE)
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -1622,7 +1664,7 @@ class MainActivity : Activity() {
         }
 
         val start = prefs.getInt(key, def).coerceIn(lo, hi)
-        valueText.text = "$start%"
+        valueText.text = "$start$unit"
         val bar = SeekBar(this).apply {
             sumi()
             this.max = hi - lo
@@ -1630,7 +1672,7 @@ class MainActivity : Activity() {
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {
                     val v = lo + p
-                    valueText.text = "$v%"
+                    valueText.text = "$v$unit"
                     prefs.edit().putInt(key, v).apply()
                 }
                 override fun onStartTrackingTouch(sb: SeekBar?) {}

@@ -260,7 +260,7 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     // 見た目の設定（高さ・色・透過など）が変わったら、表示中のキーボードをすぐ作り直す
-    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans", "bg_image", "bg_crop", "float_pct", "nav_mode", "tilt_deg", "tilt_dir", "tilt_on", "flick_pct", "accent")
+    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans", "bg_image", "bg_crop", "float_pct", "nav_mode", "tilt_deg", "tilt_dir", "tilt_on", "flick_pct", "accent", "auto_hand_s")
     private val rebuildLook = Runnable {
         if (isInputViewShown && lookKey() != builtLook) {
             stopRepeat()
@@ -820,15 +820,18 @@ class KookyKeyboardService : InputMethodService() {
     override fun onWindowShown() {
         super.onWindowShown()
         startBgAnim()
+        startAutoHand()
     }
 
     override fun onWindowHidden() {
+        handSensor.stop()
         stopBgAnim()
         stopRepeat()
         super.onWindowHidden()
     }
 
     override fun onDestroy() {
+        handSensor.stop()
         stopBgAnim()
         bgAnim = null
         prefs().unregisterOnSharedPreferenceChangeListener(lookListener)
@@ -845,6 +848,7 @@ class KookyKeyboardService : InputMethodService() {
         newSelStart: Int, newSelEnd: Int,
         candidatesStart: Int, candidatesEnd: Int
     ) {
+        lastEditAt = SystemClock.uptimeMillis()
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
         if (composing.isNotEmpty() && candidatesEnd != -1 &&
             (newSelStart != candidatesEnd || newSelEnd != candidatesEnd)
@@ -883,11 +887,55 @@ class KookyKeyboardService : InputMethodService() {
 
     // ---------- 片手モード ----------
 
+    // ボタンで切り替えたとき：自動（傾き）はキーボードを閉じるまでお休み
     private fun setOneHand(mode: Int) {
+        autoPaused = true
+        moveHand(mode)
+    }
+
+    private fun moveHand(mode: Int) {
+        if (mode == oneHand) return
         oneHand = mode
         prefs().edit().putInt("one_hand", oneHand).apply()
         applyOneHand()
         keysRow?.requestLayout()
+    }
+
+    // ---------- 傾きで片手モードに自動で寄せる ----------
+    // 右側が下がる（右に傾く）と右寄せ、左側が下がると左寄せ（設定で反対にもできる）
+    // 同じ向きに約1秒傾いたままのときだけ動かす。水平に戻ると全幅に戻す。打っている途中（直前0.8秒）は動かさない
+    private var autoPaused = false
+    private var lastEditAt = 0L
+    private var pendingHand = -1
+    private var pendingSince = 0L
+    private val handSensor by lazy { HandSensor(this) { roll -> onRoll(roll) } }
+
+    private fun autoHandOn() = prefs().getString("auto_hand_s", "off") == "on"
+
+    private fun startAutoHand() {
+        autoPaused = false
+        pendingHand = -1
+        if (autoHandOn()) handSensor.start() else handSensor.stop()
+    }
+
+    private fun onRoll(roll: Float) {
+        if (autoPaused || floating || !autoHandOn()) return
+        if (resources.configuration.orientation != android.content.res.Configuration.ORIENTATION_PORTRAIT) return
+        val deg = prefs().getInt("auto_hand_deg", 8).coerceIn(3, 20).toFloat()
+        val reverse = prefs().getString("auto_hand_dir", "same") == "reverse"
+        // 今の状態から、行きたい状態を決める（行きと戻りで角度に差をつけて、境目でガタガタしないように）
+        val want = when {
+            roll >= deg -> if (reverse) 2 else 1
+            roll <= -deg -> if (reverse) 1 else 2
+            kotlin.math.abs(roll) < deg * 0.5f -> 0
+            else -> oneHand
+        }
+        val now = SystemClock.uptimeMillis()
+        if (want == oneHand) { pendingHand = -1; return }
+        if (want != pendingHand) { pendingHand = want; pendingSince = now; return }
+        if (now - pendingSince < 1000 || now - lastEditAt < 800) return
+        pendingHand = -1
+        moveHand(want)
     }
 
     // 0=通常 1=右寄せ（左に操作パネル） 2=左寄せ（右に操作パネル）
