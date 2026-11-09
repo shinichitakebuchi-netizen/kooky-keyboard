@@ -372,8 +372,13 @@ class KookyKeyboardService : InputMethodService() {
         topIcons.add(phr)
         phraseBtn = phr
 
-        // コピーした文の履歴（タップで貼り付け）
-        val clp = toolKey(R.drawable.ic_kb_clip) { toggleClips() }
+        // 貼り付け：タップで今コピーしてある文をそのまま貼り付け、長押しでクリップボード（履歴）を開く
+        val clp = toolKey(R.drawable.ic_kb_clip) { if (tab == TAB_CLIP) backToKeyboard() else pasteNow() }
+        clp.setOnLongClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            if (tab != TAB_CLIP) toggleClips()
+            true
+        }
         top.addView(clp, LinearLayout.LayoutParams(dp(36), match).apply { leftMargin = dp(3) })
         topIcons.add(clp)
         clipBtn = clp
@@ -1181,6 +1186,25 @@ class KookyKeyboardService : InputMethodService() {
         } catch (e: Exception) {
             // 読めないときは何もしない
         }
+    }
+
+    // 今コピーしてある文を貼り付ける。クリップボードが空なら、履歴のいちばん新しい文。それもなければ履歴を開く
+    private fun pasteNow() {
+        recordClip()
+        val text = try {
+            clipboard().primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(this)?.toString()
+        } catch (e: Exception) {
+            null
+        }?.takeIf { it.isNotBlank() } ?: clips.load().firstOrNull { !it.pinned }?.text ?: clips.load().firstOrNull()?.text
+        if (text == null) {
+            toggleClips()
+            return
+        }
+        commitAll()
+        resetToggle()
+        currentInputConnection?.commitText(text, 1)
+        lastCommit = text
+        lastReading = null
     }
 
     private fun toggleClips() {
