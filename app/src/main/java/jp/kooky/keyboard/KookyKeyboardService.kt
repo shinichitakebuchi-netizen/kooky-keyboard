@@ -260,7 +260,7 @@ class KookyKeyboardService : InputMethodService() {
     }
 
     // 見た目の設定（高さ・色・透過など）が変わったら、表示中のキーボードをすぐ作り直す
-    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans", "bg_image", "bg_crop", "float_pct", "nav_mode", "tilt_deg", "tilt_dir", "tilt_on", "flick_pct", "accent", "auto_hand_s")
+    private val lookKeys = setOf("height_pct", "onehand_pct", "theme", "bg_trans", "key_trans", "bg_image", "bg_crop", "float_pct", "nav_mode", "tilt_deg", "tilt_dir", "tilt_on", "flick_pct", "accent")
     private val rebuildLook = Runnable {
         if (isInputViewShown && lookKey() != builtLook) {
             stopRepeat()
@@ -270,6 +270,8 @@ class KookyKeyboardService : InputMethodService() {
         }
     }
     private val lookListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        // 傾きで寄せる 入／切：キーボードを出したままでも、すぐにセンサーを付け外し
+        if (key == "auto_hand_s" && isInputViewShown) startAutoHand()
         if (key != null && key in lookKeys) {
             handler.removeCallbacks(rebuildLook)
             handler.postDelayed(rebuildLook, 120)
