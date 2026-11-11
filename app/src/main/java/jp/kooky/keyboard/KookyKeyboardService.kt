@@ -335,11 +335,17 @@ class KookyKeyboardService : InputMethodService() {
         root.addView(rs, LinearLayout.LayoutParams(stripWidth, match))
         rightStrip = rs
 
-        // 上段（ツールバー）：[⚙][定型文タブ or 変換候補][片手][🎤]
+        // 上段（ツールバー）：[⚙][空き or 変換候補][定型文][貼り付け][浮く][扇形][片手][音声入力アプリのバブル置き場]
         val top = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
+        // 右端は、音声入力アプリ（Typeless）のバブルを置くための くり抜き。その分、幅が足りないときはボタンを少し細くする
+        val slotW = dp(72)
+        val nBtn = if (floating) 5 else 6
+        val availW = (if (floating) resources.displayMetrics.widthPixels * prefs().getInt("float_pct", 88).coerceIn(50, 100) / 100f
+            else resources.displayMetrics.widthPixels * oneHandPct / 100f).toInt() - dp(6)
+        val btnW = minOf(dp(36), (availW - slotW - nBtn * dp(3)) / nBtn).coerceAtLeast(dp(26))
 
         // ⚙ タップ：設定画面 / 長押し：キーボードの切り替え
         val gear = toolKey(R.drawable.ic_kb_gear) { openSettings() }
@@ -348,7 +354,7 @@ class KookyKeyboardService : InputMethodService() {
             imm().showInputMethodPicker()
             true
         }
-        top.addView(gear, LinearLayout.LayoutParams(dp(36), match).apply { rightMargin = dp(3) })
+        top.addView(gear, LinearLayout.LayoutParams(btnW, match).apply { rightMargin = dp(3) })
         topIcons.add(gear)
 
         // 空き（変換中はここに変換候補が出る）
@@ -368,7 +374,7 @@ class KookyKeyboardService : InputMethodService() {
 
         // 定型文パネルの開閉
         val phr = toolKey(R.drawable.ic_kb_phrase) { togglePhrases() }
-        top.addView(phr, LinearLayout.LayoutParams(dp(36), match).apply { leftMargin = dp(3) })
+        top.addView(phr, LinearLayout.LayoutParams(btnW, match).apply { leftMargin = dp(3) })
         topIcons.add(phr)
         phraseBtn = phr
 
@@ -379,38 +385,41 @@ class KookyKeyboardService : InputMethodService() {
             if (tab != TAB_CLIP) toggleClips()
             true
         }
-        top.addView(clp, LinearLayout.LayoutParams(dp(36), match).apply { leftMargin = dp(3) })
+        top.addView(clp, LinearLayout.LayoutParams(btnW, match).apply { leftMargin = dp(3) })
         topIcons.add(clp)
         clipBtn = clp
 
         // フローティングのオン・オフ
         val flt = toolKey(R.drawable.ic_kb_float) { setFloating(!floating) }
         if (floating) flt.background = iconBg(pal.accent, dp(8).toFloat(), R.drawable.ic_kb_float, pal.onAccent)
-        top.addView(flt, LinearLayout.LayoutParams(dp(36), match).apply { leftMargin = dp(3) })
+        top.addView(flt, LinearLayout.LayoutParams(btnW, match).apply { leftMargin = dp(3) })
         topIcons.add(flt)
 
         // キーの角度（扇形）のオン・オフ。オンの間はオレンジ
         val tiltOn = prefs().getBoolean("tilt_on", true) && prefs().getInt("tilt_deg", 0) > 0
         val tlt = toolKey(R.drawable.ic_kb_tilt) { toggleTilt() }
         if (tiltOn) tlt.background = iconBg(pal.accent, dp(8).toFloat(), R.drawable.ic_kb_tilt, pal.onAccent)
-        top.addView(tlt, LinearLayout.LayoutParams(dp(36), match).apply { leftMargin = dp(3) })
+        top.addView(tlt, LinearLayout.LayoutParams(btnW, match).apply { leftMargin = dp(3) })
         topIcons.add(tlt)
 
         // 片手モードの切り替え（通常 ⇔ 右寄せ）。フローティング中は使わない
         val hand = toolKey(R.drawable.ic_kb_hand) { setOneHand(if (oneHand == 0) 1 else 0) }
-        top.addView(hand, LinearLayout.LayoutParams(dp(36), match).apply { leftMargin = dp(3) })
+        top.addView(hand, LinearLayout.LayoutParams(btnW, match).apply { leftMargin = dp(3) })
         if (!floating) topIcons.add(hand) else hand.visibility = View.GONE
 
-        // 🎤 音声入力 → AIでビジネス敬語に添削 → 自動で入力
-        // タップ：ふつうの音声入力 ／ 長押し：AIでビジネス敬語に添削して入力
-        val mic = toolKey(R.drawable.ic_kb_mic) { startVoice(false) }
-        mic.setOnLongClickListener {
-            it.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-            startVoice(true)
-            true
+        // 音声入力は Typeless のバブルに任せる（マイクのボタンはなし）
+        // バブルを置く くり抜き：細い線の小判形。変換中もここは空けておく（候補がバブルの下に隠れないように）
+        val slot = View(this).apply {
+            background = GradientDrawable().apply {
+                setColor(Color.TRANSPARENT)
+                cornerRadius = sz(38) / 2f
+                setStroke(maxOf(1, dp(1) / 2), keyColor(if (pal.wa) pal.line else pal.sub))
+            }
         }
-        top.addView(mic, LinearLayout.LayoutParams(dp(36), match).apply { leftMargin = dp(3) })
-        topIcons.add(mic)
+        top.addView(slot, LinearLayout.LayoutParams(slotW - dp(6), match).apply {
+            leftMargin = dp(5)
+            rightMargin = dp(1)
+        })
 
         p.addView(top, LinearLayout.LayoutParams(match, sz(38)))
 

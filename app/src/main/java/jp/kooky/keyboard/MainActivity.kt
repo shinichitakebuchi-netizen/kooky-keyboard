@@ -365,7 +365,8 @@ class MainActivity : Activity() {
             LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(10) })
 
         col.addView(section("設定"))
-        for ((key, title) in pages.filter { it.first != "update" }) col.addView(menuRow(title, summary(key)) { showPage(key) })
+        // 音声入力は Typeless に任せるので、「音声入力・AI添削」は一覧に出さない
+        for ((key, title) in pages.filter { it.first != "update" && it.first != "voice" }) col.addView(menuRow(title, summary(key)) { showPage(key) })
 
         // 更新（縁・庵と同じく、いちばん下に小さく）
         col.addView(text("更新する　v${currentVersion()}" + if (BuildConfig.IS_BETA) "（ベータ版）" else "", 13f, USUZUMI).apply {
