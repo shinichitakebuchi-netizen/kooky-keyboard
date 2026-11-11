@@ -408,14 +408,23 @@ class KookyKeyboardService : InputMethodService() {
         if (!floating) topIcons.add(hand) else hand.visibility = View.GONE
 
         // 音声入力は Typeless のバブルに任せる（マイクのボタンはなし）
-        // バブルを置く くり抜き：細い線の小判形。変換中もここは空けておく（候補がバブルの下に隠れないように）
-        val slot = View(this).apply {
-            background = GradientDrawable().apply {
-                setColor(Color.TRANSPARENT)
-                cornerRadius = sz(38) / 2f
-                setStroke(maxOf(1, dp(1) / 2), keyColor(if (pal.wa) pal.line else pal.sub))
+        // バブルを置く くり抜き：バブル（直径 約48dp）より ひと回り大きい輪を、バブルと同じ中心に描く
+        // 輪はツールバーの段より大きいので、上はキーボードの上端で切れて、受け皿のような形になる
+        // 位置は実機のスクショから：中心は画面の右端から約40dp、段の中心より約4dp上
+        // 変換中もここは空けておく（候補がバブルの下に隠れないように）
+        val ringPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            style = android.graphics.Paint.Style.STROKE
+            strokeWidth = dp(1).toFloat()
+            color = keyColor(if (pal.wa) pal.line else pal.sub)
+        }
+        val slot = object : View(this) {
+            override fun onDraw(canvas: android.graphics.Canvas) {
+                canvas.drawCircle(width - dp(36).toFloat(), height / 2f - dp(4), dp(26).toFloat(), ringPaint)
             }
         }
+        top.clipChildren = false
+        p.clipChildren = false
+        p.clipToPadding = false
         top.addView(slot, LinearLayout.LayoutParams(slotW - dp(6), match).apply {
             leftMargin = dp(5)
             rightMargin = dp(1)
